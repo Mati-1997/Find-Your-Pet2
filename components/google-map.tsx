@@ -73,7 +73,7 @@ export default function GoogleMap({
       // Crear y agregar el script
       const script = document.createElement("script")
       script.src = `https://maps.googleapis.com/maps/api/js?key=${
-        process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_API_KEY_HERE"
+        process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyCOib0-Gj7EPTj1lSbkaWsladqELGH1JPU"
       }&callback=initGoogleMaps&libraries=places`
       script.async = true
       script.defer = true
