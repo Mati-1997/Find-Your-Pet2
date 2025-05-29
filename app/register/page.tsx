@@ -80,14 +80,14 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary mb-2">Find Your Pet</h1>
+          <h1 className="text-3xl font-bold text-primary mb-2">PetFinder</h1>
           <p className="text-gray-500">Encuentra y protege a tus mascotas</p>
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle>Crear cuenta</CardTitle>
-            <CardDescription>Regístrate para comenzar a usar Find Your Pet</CardDescription>
+            <CardDescription>Regístrate para comenzar a usar PetFinder</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">

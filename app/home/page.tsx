@@ -1,19 +1,34 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { MapPin, Search, PlusCircle, Bell, User } from "lucide-react"
+import { MapPin, Search, PlusCircle, Bell, User, Mic, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import StaticMap from "@/components/static-map"
 import { getSamplePetLocations } from "@/lib/location-service"
 import AlertSummary from "@/components/alert-summary"
+import { Input } from "@/components/ui/input"
+import { useToast } from "@/components/ui/use-toast"
+
+// Add TypeScript declarations for the Web Speech API
+declare global {
+  interface Window {
+    SpeechRecognition: any
+    webkitSpeechRecognition: any
+  }
+}
 
 export default function HomePage() {
   const router = useRouter()
-  const petLocations = getSamplePetLocations()
+  const { toast } = useToast()
+  // Memoize pet locations to prevent infinite re-renders
+  const petLocations = useMemo(() => getSamplePetLocations(), [])
   const [activeTab, setActiveTab] = useState("map")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [isListening, setIsListening] = useState(false)
+  const [filteredLocations, setFilteredLocations] = useState(petLocations)
 
   const handlePetClick = (petId: string) => {
     router.push(`/pet-detail?id=${petId}`)
@@ -23,19 +38,106 @@ export default function HomePage() {
     router.push(`/pet-detail?id=${pet.id}`)
   }
 
+  // Handle voice search
+  const handleVoiceSearch = () => {
+    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      const recognition = new SpeechRecognition()
+
+      recognition.lang = "es-ES"
+      recognition.interimResults = false
+      recognition.maxAlternatives = 1
+
+      setIsListening(true)
+
+      recognition.onresult = (event) => {
+        const speechResult = event.results[0][0].transcript
+        setSearchQuery(speechResult)
+        setIsListening(false)
+        filterResults(speechResult)
+      }
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error", event.error)
+        setIsListening(false)
+      }
+
+      recognition.onend = () => {
+        setIsListening(false)
+      }
+
+      recognition.start()
+    } else {
+      toast({
+        title: "No disponible",
+        description: "La búsqueda por voz no está disponible en este navegador.",
+        duration: 3000,
+      })
+    }
+  }
+
+  // Filter results based on search query
+  const filterResults = (query: string) => {
+    if (!query.trim()) {
+      setFilteredLocations(petLocations)
+      return
+    }
+
+    const filtered = petLocations.filter(
+      (pet) =>
+        pet.name.toLowerCase().includes(query.toLowerCase()) || pet.status.toLowerCase().includes(query.toLowerCase()),
+    )
+
+    setFilteredLocations(filtered)
+  }
+
+  // Update filtered results when search query changes
+  useEffect(() => {
+    filterResults(searchQuery)
+  }, [searchQuery]) // Remove petLocations from dependency array
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white border-b">
-        <div className="container flex items-center justify-between h-16 px-4">
-          <h1 className="text-xl font-bold text-primary">Find Your Pet</h1>
-          <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="icon" onClick={() => router.push("/alerts")}>
-              <Bell className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => router.push("/profile")}>
-              <User className="w-5 h-5" />
-            </Button>
+        <div className="container flex flex-col items-center h-auto px-4 py-2">
+          <div className="flex items-center justify-between w-full">
+            <h1 className="text-xl font-bold text-primary">PetFinder</h1>
+            <div className="flex items-center space-x-2">
+              <Button variant="ghost" size="icon" onClick={() => router.push("/alerts")}>
+                <Bell className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => router.push("/profile")}>
+                <User className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative w-full max-w-md mt-2">
+            <div className="relative flex items-center">
+              <Search className="absolute left-3 text-gray-400 h-4 w-4" />
+              <Input
+                type="text"
+                placeholder="Search Here"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-9 py-2 w-full rounded-full border-2 border-gray-800"
+              />
+              {searchQuery ? (
+                <X
+                  className="absolute right-3 text-gray-400 h-4 w-4 cursor-pointer"
+                  onClick={() => setSearchQuery("")}
+                />
+              ) : (
+                <Mic className="absolute right-3 text-gray-400 h-4 w-4 cursor-pointer" onClick={handleVoiceSearch} />
+              )}
+            </div>
+            {isListening && (
+              <div className="absolute mt-1 w-full bg-white rounded-md shadow-lg p-2 text-center text-sm">
+                Listening... Speak now
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -81,34 +183,46 @@ export default function HomePage() {
           </TabsList>
           <TabsContent value="map" className="mt-4">
             <div className="rounded-lg h-64 overflow-hidden">
-              <StaticMap petLocations={petLocations} height="100%" width="100%" onMarkerClick={handleMapMarkerClick} />
+              <StaticMap
+                petLocations={filteredLocations}
+                height="100%"
+                width="100%"
+                onMarkerClick={handleMapMarkerClick}
+              />
             </div>
           </TabsContent>
           <TabsContent value="list" className="mt-4">
             <div className="space-y-4">
-              {petLocations.map((pet) => (
-                <Card
-                  key={pet.id}
-                  className="overflow-hidden cursor-pointer hover:border-primary transition-colors"
-                  onClick={() => handlePetClick(pet.id)}
-                >
-                  <CardContent className="p-0">
-                    <div className="flex">
-                      <div className="w-24 h-24 bg-gray-300 flex-shrink-0"></div>
-                      <div className="p-4">
-                        <h3 className="font-medium">{pet.name}</h3>
-                        <p className="text-sm text-gray-500">
-                          Visto hace {getTimeAgo(pet.timestamp)} • {getDistance(pet.latitude, pet.longitude)}km
-                        </p>
-                        <div className="flex items-center mt-2 text-xs text-blue-600">
-                          <MapPin className="w-3 h-3 mr-1" />
-                          Ver ubicación
+              {filteredLocations.length > 0 ? (
+                filteredLocations.map((pet) => (
+                  <Card
+                    key={pet.id}
+                    className="overflow-hidden cursor-pointer hover:border-primary transition-colors"
+                    onClick={() => handlePetClick(pet.id)}
+                  >
+                    <CardContent className="p-0">
+                      <div className="flex">
+                        <div className="w-24 h-24 bg-gray-300 flex-shrink-0"></div>
+                        <div className="p-4">
+                          <h3 className="font-medium">{pet.name}</h3>
+                          <p className="text-sm text-gray-500">
+                            Visto hace {getTimeAgo(pet.timestamp)} • {getDistance(pet.latitude, pet.longitude)}km
+                          </p>
+                          <div className="flex items-center mt-2 text-xs text-blue-600">
+                            <MapPin className="w-3 h-3 mr-1" />
+                            Ver ubicación
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Search className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                  <p>No se encontraron resultados para "{searchQuery}"</p>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>

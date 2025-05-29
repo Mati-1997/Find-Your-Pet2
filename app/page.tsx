@@ -32,7 +32,7 @@ export default function Home() {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white border-b">
         <div className="container flex items-center justify-between h-16 px-4">
-          <h1 className="text-xl font-bold text-primary">Find Your Pet</h1>
+          <h1 className="text-xl font-bold text-primary">PetFinder</h1>
           <div className="flex items-center space-x-2">
             <Button variant="ghost" size="icon" onClick={() => router.push("/alerts")}>
               <Bell className="w-5 h-5" />
