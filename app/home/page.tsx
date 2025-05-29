@@ -6,7 +6,7 @@ import { MapPin, Search, PlusCircle, Bell, User, Mic, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import StaticMap from "@/components/static-map"
+import GoogleMap from "@/components/google-map"
 import { getSamplePetLocations } from "@/lib/location-service"
 import AlertSummary from "@/components/alert-summary"
 import { Input } from "@/components/ui/input"
@@ -94,7 +94,7 @@ export default function HomePage() {
   // Update filtered results when search query changes
   useEffect(() => {
     filterResults(searchQuery)
-  }, [searchQuery]) // Remove petLocations from dependency array
+  }, [searchQuery])
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -102,7 +102,7 @@ export default function HomePage() {
       <header className="sticky top-0 z-10 bg-white border-b">
         <div className="container flex flex-col items-center h-auto px-4 py-2">
           <div className="flex items-center justify-between w-full">
-            <h1 className="text-xl font-bold text-primary">PetFinder</h1>
+            <h1 className="text-xl font-bold text-primary">Find Your Pet</h1>
             <div className="flex items-center space-x-2">
               <Button variant="ghost" size="icon" onClick={() => router.push("/alerts")}>
                 <Bell className="w-5 h-5" />
@@ -183,11 +183,16 @@ export default function HomePage() {
           </TabsList>
           <TabsContent value="map" className="mt-4">
             <div className="rounded-lg h-64 overflow-hidden">
-              <StaticMap
+              <GoogleMap
                 petLocations={filteredLocations}
                 height="100%"
                 width="100%"
                 onMarkerClick={handleMapMarkerClick}
+                initialCenter={{
+                  lat: 19.4326, // Ciudad de México
+                  lng: -99.1332,
+                }}
+                initialZoom={12}
               />
             </div>
           </TabsContent>
