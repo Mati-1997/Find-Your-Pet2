@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -10,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useAuth } from "@/hooks/use-auth"
 import { Loader2 } from "lucide-react"
 
 export default function RegisterPage() {
@@ -25,7 +22,6 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   const router = useRouter()
-  const { signUp } = useAuth()
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
@@ -39,6 +35,7 @@ export default function RegisterPage() {
     setLoading(true)
     setError("")
 
+    // Validaciones del cliente
     if (formData.password !== formData.confirmPassword) {
       setError("Las contraseñas no coinciden")
       setLoading(false)
@@ -52,17 +49,32 @@ export default function RegisterPage() {
     }
 
     try {
-      await signUp(formData.email, formData.password, {
-        full_name: formData.fullName,
-        phone: formData.phone,
+      // Llamada al endpoint de registro
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.fullName,
+          phone: formData.phone,
+        }),
       })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al crear la cuenta")
+      }
 
       setSuccess(true)
       setTimeout(() => {
         router.push("/home")
       }, 2000)
     } catch (error: any) {
-      setError(error.message || "Error al crear la cuenta")
+      setError(error.message)
     } finally {
       setLoading(false)
     }

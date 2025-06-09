@@ -1,12 +1,11 @@
-// lib/supabase/server.ts
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient as supabaseCreateServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { Database } from './types'
 
-export function createServerClient() {
+export function createSupabaseServerClient() {
   const cookieStore = cookies()
 
-  return createServerClient<Database>(
+  return supabaseCreateServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
