@@ -1,3 +1,5 @@
+// app/page.tsx
+'use server'; // ← Esto lo convierte en Server Component
 import Link from "next/link"
 import { ArrowLeft, Camera, Upload, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
