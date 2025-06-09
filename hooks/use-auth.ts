@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { authService } from "@/lib/supabase/auth"
+import { authService } from "@/lib/supabase/auth-client"
 import type { User } from "@supabase/auth-helpers-nextjs"
 import type { Database } from "@/lib/supabase/types"
 

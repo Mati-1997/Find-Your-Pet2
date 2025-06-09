@@ -7,7 +7,7 @@ import type { PetLocation } from "@/lib/location-service"
 declare global {
   interface Window {
     google: any
-    initGoogleMaps: () => void
+    initGoogleMaps?: () => void
   }
 }
 
@@ -27,7 +27,7 @@ type GoogleMapProps = {
 export default function GoogleMap({
   petLocations = [],
   initialCenter = {
-    lat: 19.4326, // Ciudad de México
+    lat: 19.4326,
     lng: -99.1332,
   },
   initialZoom = 12,
@@ -39,38 +39,26 @@ export default function GoogleMap({
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const markersRef = useRef<any[]>([])
+  const infoWindowsRef = useRef<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Función para cargar el script de Google Maps
+  // Cargar el script de Google Maps
   const loadGoogleMapsScript = () => {
     return new Promise<void>((resolve, reject) => {
-      // Verificar si ya está cargado
       if (window.google && window.google.maps) {
         resolve()
         return
       }
-
-      // Verificar si ya existe el script
-      if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-        // Esperar a que se cargue
-        const checkLoaded = () => {
-          if (window.google && window.google.maps) {
-            resolve()
-          } else {
-            setTimeout(checkLoaded, 100)
-          }
-        }
-        checkLoaded()
-        return
+      // Elimina scripts duplicados si existen
+      const prevScript = document.querySelector('script[src*="maps.googleapis.com"]')
+      if (prevScript) {
+        prevScript.remove()
       }
-
-      // Crear función de callback global
       window.initGoogleMaps = () => {
         resolve()
+        delete window.initGoogleMaps
       }
-
-      // Crear y agregar el script
       const script = document.createElement("script")
       script.src = `https://maps.googleapis.com/maps/api/js?key=${
         process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyCOib0-Gj7EPTj1lSbkaWsladqELGH1JPU"
@@ -78,61 +66,28 @@ export default function GoogleMap({
       script.async = true
       script.defer = true
       script.onerror = () => reject(new Error("Error loading Google Maps"))
-
       document.head.appendChild(script)
     })
   }
 
-  // Inicializar el mapa
-  const initializeMap = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
+  // Validar datos de ubicación
+  const isValidPetLocation = (pet: any): pet is PetLocation =>
+    pet &&
+    typeof pet.latitude === "number" &&
+    typeof pet.longitude === "number" &&
+    typeof pet.name === "string" &&
+    typeof pet.status === "string" &&
+    typeof pet.timestamp !== "undefined"
 
-      await loadGoogleMapsScript()
-
-      if (!mapRef.current) {
-        throw new Error("Map container not found")
-      }
-
-      // Crear el mapa
-      const map = new window.google.maps.Map(mapRef.current, {
-        center: initialCenter,
-        zoom: initialZoom,
-        mapTypeControl: true,
-        streetViewControl: true,
-        fullscreenControl: true,
-        zoomControl: true,
-        styles: [
-          // Estilo personalizado para el mapa (opcional)
-          {
-            featureType: "poi",
-            elementType: "labels",
-            stylers: [{ visibility: "off" }],
-          },
-        ],
-      })
-
-      mapInstanceRef.current = map
-      setIsLoading(false)
-
-      // Agregar marcadores
-      addMarkers(map)
-    } catch (err) {
-      console.error("Error initializing Google Maps:", err)
-      setError("Error al cargar Google Maps. Verifica tu API key.")
-      setIsLoading(false)
-    }
-  }
-
-  // Función para agregar marcadores
+  // Agregar marcadores
   const addMarkers = (map: any) => {
-    // Limpiar marcadores existentes
     markersRef.current.forEach((marker) => marker.setMap(null))
     markersRef.current = []
+    infoWindowsRef.current.forEach((info) => info.close())
+    infoWindowsRef.current = []
 
-    petLocations.forEach((pet) => {
-      // Crear marcador personalizado
+    const validPets = petLocations.filter(isValidPetLocation)
+    validPets.forEach((pet) => {
       const marker = new window.google.maps.Marker({
         position: { lat: pet.latitude, lng: pet.longitude },
         map: map,
@@ -147,7 +102,6 @@ export default function GoogleMap({
         },
       })
 
-      // Crear ventana de información
       const infoWindow = new window.google.maps.InfoWindow({
         content: `
           <div style="padding: 8px; max-width: 200px;">
@@ -175,8 +129,8 @@ export default function GoogleMap({
         `,
       })
 
-      // Agregar evento de clic
       marker.addListener("click", () => {
+        infoWindowsRef.current.forEach((info) => info.close())
         infoWindow.open(map, marker)
         if (onMarkerClick) {
           onMarkerClick(pet)
@@ -184,17 +138,15 @@ export default function GoogleMap({
       })
 
       markersRef.current.push(marker)
+      infoWindowsRef.current.push(infoWindow)
     })
 
-    // Ajustar la vista para mostrar todos los marcadores
-    if (petLocations.length > 0) {
+    if (validPets.length > 0) {
       const bounds = new window.google.maps.LatLngBounds()
-      petLocations.forEach((pet) => {
+      validPets.forEach((pet) => {
         bounds.extend({ lat: pet.latitude, lng: pet.longitude })
       })
       map.fitBounds(bounds)
-
-      // Asegurar un zoom mínimo
       const listener = window.google.maps.event.addListener(map, "idle", () => {
         if (map.getZoom() > 15) map.setZoom(15)
         window.google.maps.event.removeListener(listener)
@@ -202,21 +154,19 @@ export default function GoogleMap({
     }
   }
 
-  // Función para obtener color según el estado
   const getColorForStatus = (status: string): string => {
     switch (status) {
       case "lost":
-        return "#ef4444" // Rojo
+        return "#ef4444"
       case "found":
-        return "#22c55e" // Verde
+        return "#22c55e"
       case "home":
-        return "#3b82f6" // Azul
+        return "#3b82f6"
       default:
-        return "#6b7280" // Gris
+        return "#6b7280"
     }
   }
 
-  // Función para obtener texto del estado
   const getStatusText = (status: string): string => {
     switch (status) {
       case "lost":
@@ -230,17 +180,61 @@ export default function GoogleMap({
     }
   }
 
-  // Inicializar mapa al montar el componente
+  const initializeMap = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      await loadGoogleMapsScript()
+      if (!mapRef.current) throw new Error("Map container not found")
+      markersRef.current.forEach((marker) => marker.setMap(null))
+      markersRef.current = []
+      infoWindowsRef.current.forEach((info) => info.close())
+      infoWindowsRef.current = []
+      mapInstanceRef.current = null
+
+      const map = new window.google.maps.Map(mapRef.current, {
+        center: initialCenter,
+        zoom: initialZoom,
+        mapTypeControl: true,
+        streetViewControl: true,
+        fullscreenControl: true,
+        zoomControl: true,
+        styles: [
+          {
+            featureType: "poi",
+            elementType: "labels",
+            stylers: [{ visibility: "off" }],
+          },
+        ],
+      })
+
+      mapInstanceRef.current = map
+      setIsLoading(false)
+      addMarkers(map)
+    } catch (err) {
+      console.error("Error initializing Google Maps:", err)
+      setError("Error al cargar Google Maps. Verifica tu API key.")
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
     initializeMap()
-  }, [])
+    return () => {
+      markersRef.current.forEach((marker) => marker.setMap(null))
+      markersRef.current = []
+      infoWindowsRef.current.forEach((info) => info.close())
+      infoWindowsRef.current = []
+      mapInstanceRef.current = null
+      if (window.initGoogleMaps) delete window.initGoogleMaps
+    }
+  }, [JSON.stringify(initialCenter), initialZoom])
 
-  // Actualizar marcadores cuando cambien las ubicaciones
   useEffect(() => {
     if (mapInstanceRef.current && !isLoading) {
       addMarkers(mapInstanceRef.current)
     }
-  }, [petLocations])
+  }, [petLocations, isLoading])
 
   if (error) {
     return (

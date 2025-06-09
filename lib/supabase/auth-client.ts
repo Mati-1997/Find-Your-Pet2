@@ -93,14 +93,3 @@ export class AuthService {
 
 export const authService = new AuthService()
 
-// Server-side auth helper
-export async function getServerUser() {
-  const supabase = createServerClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-
-  if (error) return null
-  return user
-}

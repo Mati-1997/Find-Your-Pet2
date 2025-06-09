@@ -11,11 +11,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!loading) {
-      if (user) {
-        router.push("/home")
-      } else {
-        router.push("/login")
-      }
+      router.push(user ? "/home" : "/login")
     }
   }, [user, loading, router])
 
