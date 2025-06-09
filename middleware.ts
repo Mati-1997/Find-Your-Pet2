@@ -1,43 +1,47 @@
+import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-// Esta función se ejecuta antes de cada solicitud
-export function middleware(request: NextRequest) {
-  // Rutas públicas que no requieren autenticación
-  const publicRoutes = ["/login", "/register", "/forgot-password"]
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next()
+  const supabase = createMiddlewareClient({ req, res })
 
-  // Verificar si la ruta actual es pública
-  const isPublicRoute = publicRoutes.some(
-    (route) => request.nextUrl.pathname === route || request.nextUrl.pathname === "/",
-  )
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
 
-  // Simulación de verificación de autenticación
-  // En una aplicación real, verificarías un token o cookie de sesión
-  const isAuthenticated = request.cookies.has("auth_token")
+  // Protected routes
+  const protectedRoutes = [
+    "/home",
+    "/profile",
+    "/tracking",
+    "/alerts",
+    "/ai-recognition",
+    "/location-history",
+    "/report",
+    "/pet-detail",
+  ]
 
-  // Si no está autenticado y la ruta no es pública, redirigir al login
-  if (!isAuthenticated && !isPublicRoute) {
-    return NextResponse.redirect(new URL("/login", request.url))
+  const isProtectedRoute = protectedRoutes.some((route) => req.nextUrl.pathname.startsWith(route))
+
+  // Redirect to login if accessing protected route without session
+  if (isProtectedRoute && !session) {
+    const redirectUrl = new URL("/login", req.url)
+    redirectUrl.searchParams.set("redirectTo", req.nextUrl.pathname)
+    return NextResponse.redirect(redirectUrl)
   }
 
-  // Si está autenticado y está intentando acceder a una ruta pública, redirigir a home
-  if (isAuthenticated && isPublicRoute && request.nextUrl.pathname !== "/") {
-    return NextResponse.redirect(new URL("/home", request.url))
+  // Redirect to home if accessing auth pages with active session
+  const authRoutes = ["/login", "/register", "/forgot-password"]
+  const isAuthRoute = authRoutes.includes(req.nextUrl.pathname)
+
+  if (isAuthRoute && session) {
+    return NextResponse.redirect(new URL("/home", req.url))
   }
 
-  return NextResponse.next()
+  return res
 }
 
-// Configurar en qué rutas se ejecutará el middleware
 export const config = {
-  matcher: [
-    /*
-     * Coincide con todas las rutas excepto:
-     * 1. /api (rutas API)
-     * 2. /_next (archivos de Next.js)
-     * 3. /_static (si usas Vercel para servir archivos estáticos)
-     * 4. /favicon.ico, /sitemap.xml, /robots.txt (archivos comunes)
-     */
-    "/((?!api|_next|_static|favicon.ico|sitemap.xml|robots.txt).*)",
-  ],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 }

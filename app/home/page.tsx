@@ -1,16 +1,18 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { MapPin, Search, PlusCircle, Bell, User, Mic, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import GoogleMap from "@/components/google-map"
-import { getSamplePetLocations } from "@/lib/location-service"
 import AlertSummary from "@/components/alert-summary"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/hooks/use-auth"
+import { petService } from "@/lib/supabase/pets"
+import { locationService } from "@/lib/supabase/locations"
 
 // Add TypeScript declarations for the Web Speech API
 declare global {
@@ -20,21 +22,86 @@ declare global {
   }
 }
 
+interface PetWithLocation {
+  id: string
+  name: string
+  breed: string
+  status: string
+  is_lost: boolean
+  latitude?: number
+  longitude?: number
+  timestamp?: string
+}
+
 export default function HomePage() {
   const router = useRouter()
   const { toast } = useToast()
-  // Memoize pet locations to prevent infinite re-renders
-  const petLocations = useMemo(() => getSamplePetLocations(), [])
+  const { user, loading } = useAuth()
+  const [pets, setPets] = useState<PetWithLocation[]>([])
   const [activeTab, setActiveTab] = useState("map")
   const [searchQuery, setSearchQuery] = useState("")
   const [isListening, setIsListening] = useState(false)
-  const [filteredLocations, setFilteredLocations] = useState(petLocations)
+  const [filteredLocations, setFilteredLocations] = useState<PetWithLocation[]>([])
+  const [loadingPets, setLoadingPets] = useState(true)
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+    }
+  }, [user, loading, router])
+
+  // Load pets and their locations
+  useEffect(() => {
+    async function loadPetsData() {
+      if (!user) return
+
+      try {
+        setLoadingPets(true)
+
+        // Get all lost pets (public data)
+        const lostPets = await petService.getLostPets()
+
+        // Get locations for each pet
+        const petsWithLocations = await Promise.all(
+          lostPets.map(async (pet) => {
+            try {
+              const location = await locationService.getLatestPetLocation(pet.id)
+              return {
+                ...pet,
+                latitude: location?.latitude,
+                longitude: location?.longitude,
+                timestamp: location?.timestamp,
+              }
+            } catch (error) {
+              console.error(`Error loading location for pet ${pet.id}:`, error)
+              return pet
+            }
+          }),
+        )
+
+        setPets(petsWithLocations)
+        setFilteredLocations(petsWithLocations)
+      } catch (error) {
+        console.error("Error loading pets:", error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las mascotas",
+          variant: "destructive",
+        })
+      } finally {
+        setLoadingPets(false)
+      }
+    }
+
+    loadPetsData()
+  }, [user, toast])
 
   const handlePetClick = (petId: string) => {
     router.push(`/pet-detail?id=${petId}`)
   }
 
-  const handleMapMarkerClick = (pet) => {
+  const handleMapMarkerClick = (pet: PetWithLocation) => {
     router.push(`/pet-detail?id=${pet.id}`)
   }
 
@@ -79,13 +146,15 @@ export default function HomePage() {
   // Filter results based on search query
   const filterResults = (query: string) => {
     if (!query.trim()) {
-      setFilteredLocations(petLocations)
+      setFilteredLocations(pets)
       return
     }
 
-    const filtered = petLocations.filter(
+    const filtered = pets.filter(
       (pet) =>
-        pet.name.toLowerCase().includes(query.toLowerCase()) || pet.status.toLowerCase().includes(query.toLowerCase()),
+        pet.name.toLowerCase().includes(query.toLowerCase()) ||
+        pet.breed?.toLowerCase().includes(query.toLowerCase()) ||
+        pet.status.toLowerCase().includes(query.toLowerCase()),
     )
 
     setFilteredLocations(filtered)
@@ -94,7 +163,18 @@ export default function HomePage() {
   // Update filtered results when search query changes
   useEffect(() => {
     filterResults(searchQuery)
-  }, [searchQuery])
+  }, [searchQuery, pets])
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -119,7 +199,7 @@ export default function HomePage() {
               <Search className="absolute left-3 text-gray-400 h-4 w-4" />
               <Input
                 type="text"
-                placeholder="Search Here"
+                placeholder="Buscar mascota..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 pr-9 py-2 w-full rounded-full border-2 border-gray-800"
@@ -135,7 +215,7 @@ export default function HomePage() {
             </div>
             {isListening && (
               <div className="absolute mt-1 w-full bg-white rounded-md shadow-lg p-2 text-center text-sm">
-                Listening... Speak now
+                Escuchando... Habla ahora
               </div>
             )}
           </div>
@@ -183,22 +263,33 @@ export default function HomePage() {
           </TabsList>
           <TabsContent value="map" className="mt-4">
             <div className="rounded-lg h-64 overflow-hidden">
-              <GoogleMap
-                petLocations={filteredLocations}
-                height="100%"
-                width="100%"
-                onMarkerClick={handleMapMarkerClick}
-                initialCenter={{
-                  lat: 19.4326, // Ciudad de México
-                  lng: -99.1332,
-                }}
-                initialZoom={12}
-              />
+              {filteredLocations.filter((pet) => pet.latitude && pet.longitude).length > 0 ? (
+                <GoogleMap
+                  petLocations={filteredLocations.filter((pet) => pet.latitude && pet.longitude)}
+                  height="100%"
+                  width="100%"
+                  onMarkerClick={handleMapMarkerClick}
+                  initialCenter={{
+                    lat: 19.4326, // Ciudad de México
+                    lng: -99.1332,
+                  }}
+                  initialZoom={12}
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center bg-gray-100 rounded-lg">
+                  <p className="text-gray-500">No hay ubicaciones disponibles</p>
+                </div>
+              )}
             </div>
           </TabsContent>
           <TabsContent value="list" className="mt-4">
             <div className="space-y-4">
-              {filteredLocations.length > 0 ? (
+              {loadingPets ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p className="text-gray-500">Cargando mascotas...</p>
+                </div>
+              ) : filteredLocations.length > 0 ? (
                 filteredLocations.map((pet) => (
                   <Card
                     key={pet.id}
@@ -211,8 +302,11 @@ export default function HomePage() {
                         <div className="p-4">
                           <h3 className="font-medium">{pet.name}</h3>
                           <p className="text-sm text-gray-500">
-                            Visto hace {getTimeAgo(pet.timestamp)} • {getDistance(pet.latitude, pet.longitude)}km
+                            {pet.breed} • {pet.is_lost ? "Perdido" : "Encontrado"}
                           </p>
+                          {pet.timestamp && (
+                            <p className="text-sm text-gray-500">Visto hace {getTimeAgo(pet.timestamp)}</p>
+                          )}
                           <div className="flex items-center mt-2 text-xs text-blue-600">
                             <MapPin className="w-3 h-3 mr-1" />
                             Ver ubicación
@@ -323,7 +417,17 @@ export default function HomePage() {
   )
 }
 
-function MethodCard({ title, icon, description, onClick }) {
+function MethodCard({
+  title,
+  icon,
+  description,
+  onClick,
+}: {
+  title: string
+  icon: string
+  description: string
+  onClick: () => void
+}) {
   return (
     <Card className="overflow-hidden cursor-pointer hover:border-primary transition-colors" onClick={onClick}>
       <CardContent className="p-4">
@@ -353,10 +457,4 @@ function getTimeAgo(timestamp: string): string {
 
   const days = Math.floor(hours / 24)
   return `${days}d`
-}
-
-// Función simple para simular distancia
-function getDistance(lat: number, lon: number): string {
-  // En una app real, calcularíamos la distancia real
-  return (Math.random() * 5).toFixed(1)
 }

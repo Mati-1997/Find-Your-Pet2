@@ -9,4 +9,4 @@ Matias Fazio
 
 ## 📌 Reglas  
 - Siempre crear una rama nueva para cada feature.  
-- Revisar 2 compañeros antes de mergear a `main`. 
+- Revisar 2 compañeros antes de mergear a `main`.
