@@ -1,8 +1,6 @@
-// app/report/actions.ts
-"use server";// Server Action (puede moverse a un archivo aparte como actions.ts)
-async function handleSubmit(prevState: any, formData: FormData) {
-  "use server";
-  
+"use server";
+
+export async function handleSubmit(prevState: any, formData: FormData) {
   // 1. Obtener datos del formulario
   const data = {
     reportType: formData.get("reportType") as string,
