@@ -1,4 +1,3 @@
-
 "use client";
 // al inicio del archivo page.tsx
 import { handleSubmit } from "./actions";

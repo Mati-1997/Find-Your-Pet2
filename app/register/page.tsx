@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -50,10 +52,10 @@ export default function RegisterPage() {
 
     try {
       // Llamada al endpoint de registro
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           email: formData.email,
@@ -63,18 +65,25 @@ export default function RegisterPage() {
         }),
       })
 
+      // Verificar si la respuesta es JSON válida
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("El servidor no respondió con JSON válido. Verifica la configuración de la API.")
+      }
+
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "Error al crear la cuenta")
+        throw new Error(data.error || `Error del servidor: ${response.status}`)
       }
 
       setSuccess(true)
       setTimeout(() => {
-        router.push("/home")
+        router.push("/login")
       }, 2000)
     } catch (error: any) {
-      setError(error.message)
+      console.error("Registration error:", error)
+      setError(error.message || "Error al crear la cuenta")
     } finally {
       setLoading(false)
     }
