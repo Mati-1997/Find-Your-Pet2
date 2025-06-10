@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -20,7 +20,23 @@ export default function LoginPage() {
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const router = useRouter()
+
+  useEffect(() => {
+    // Verificar si hay parámetros de error o éxito en la URL
+    const urlParams = new URLSearchParams(window.location.search)
+    const errorParam = urlParams.get("error")
+    const messageParam = urlParams.get("message")
+
+    if (errorParam === "verification_failed") {
+      setError("Error al verificar el email. Por favor, intenta de nuevo.")
+    } else if (errorParam === "callback_error") {
+      setError("Error en la verificación. Por favor, contacta soporte.")
+    } else if (messageParam === "email_verified") {
+      setSuccess("¡Email verificado exitosamente! Ahora puedes iniciar sesión.")
+    }
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
@@ -33,6 +49,7 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError("")
+    setSuccess("")
 
     try {
       // Verificar variables de entorno
@@ -56,7 +73,15 @@ export default function LoginPage() {
 
       if (authError) {
         console.error("Error de autenticación:", authError)
-        throw new Error(authError.message)
+
+        // Manejar diferentes tipos de errores
+        if (authError.message.includes("Email not confirmed")) {
+          throw new Error("Por favor, verifica tu email antes de iniciar sesión. Revisa tu bandeja de entrada.")
+        } else if (authError.message.includes("Invalid login credentials")) {
+          throw new Error("Email o contraseña incorrectos.")
+        } else {
+          throw new Error(authError.message)
+        }
       }
 
       if (!authData.user) {
@@ -64,6 +89,12 @@ export default function LoginPage() {
       }
 
       console.log("Sesión iniciada exitosamente:", authData.user.id)
+      console.log("Usuario verificado:", authData.user.email_confirmed_at ? "Sí" : "No")
+
+      // Verificar si el email está confirmado
+      if (!authData.user.email_confirmed_at) {
+        throw new Error("Por favor, verifica tu email antes de iniciar sesión. Revisa tu bandeja de entrada.")
+      }
 
       // Redirigir al home
       router.push("/home")
@@ -87,6 +118,12 @@ export default function LoginPage() {
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {success && (
+              <Alert className="border-green-200 bg-green-50">
+                <AlertDescription className="text-green-800">{success}</AlertDescription>
               </Alert>
             )}
 
