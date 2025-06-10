@@ -51,8 +51,14 @@ export default function RegisterPage() {
     }
 
     try {
-      // Llamada al endpoint de registro
-      const response = await fetch("/api/auth/register", {
+      // Construir la URL completa para evitar problemas de routing
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
+      const apiUrl = `${baseUrl}/api/auth/register`
+
+      console.log("Attempting to register with URL:", apiUrl)
+
+      // Llamada al endpoint de registro con configuración adicional
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -65,13 +71,19 @@ export default function RegisterPage() {
         }),
       })
 
+      console.log("Response status:", response.status)
+      console.log("Response headers:", response.headers)
+
       // Verificar si la respuesta es JSON válida
       const contentType = response.headers.get("content-type")
       if (!contentType || !contentType.includes("application/json")) {
+        const textResponse = await response.text()
+        console.error("Non-JSON response:", textResponse)
         throw new Error("El servidor no respondió con JSON válido. Verifica la configuración de la API.")
       }
 
       const data = await response.json()
+      console.log("Response data:", data)
 
       if (!response.ok) {
         throw new Error(data.error || `Error del servidor: ${response.status}`)
@@ -83,7 +95,13 @@ export default function RegisterPage() {
       }, 2000)
     } catch (error: any) {
       console.error("Registration error:", error)
-      setError(error.message || "Error al crear la cuenta")
+
+      // Proporcionar mensajes de error más específicos
+      if (error.name === "TypeError" && error.message.includes("fetch")) {
+        setError("No se pudo conectar con el servidor. Verifica tu conexión a internet.")
+      } else {
+        setError(error.message || "Error al crear la cuenta")
+      }
     } finally {
       setLoading(false)
     }
@@ -97,7 +115,7 @@ export default function RegisterPage() {
             <div className="text-center">
               <div className="text-green-600 text-4xl mb-4">✓</div>
               <h2 className="text-xl font-semibold mb-2">¡Cuenta creada exitosamente!</h2>
-              <p className="text-gray-600">Redirigiendo...</p>
+              <p className="text-gray-600">Redirigiendo al login...</p>
             </div>
           </CardContent>
         </Card>
