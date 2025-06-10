@@ -1,3 +1,5 @@
+// al inicio del archivo page.tsx
+import { handleSubmit } from "./actions";
 "use client";
 
 import { ArrowLeft, Camera, MapPin, Upload } from "lucide-react";
