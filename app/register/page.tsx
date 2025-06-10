@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
+import { createClient } from "@supabase/supabase-js"
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -51,42 +52,55 @@ export default function RegisterPage() {
     }
 
     try {
-      // Construir la URL completa para evitar problemas de routing
-      const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
-      const apiUrl = `${baseUrl}/api/auth/register`
+      // Verificar variables de entorno
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-      console.log("Attempting to register with URL:", apiUrl)
-
-      // Llamada al endpoint de registro con configuración adicional
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          full_name: formData.fullName,
-          phone: formData.phone,
-        }),
-      })
-
-      console.log("Response status:", response.status)
-      console.log("Response headers:", response.headers)
-
-      // Verificar si la respuesta es JSON válida
-      const contentType = response.headers.get("content-type")
-      if (!contentType || !contentType.includes("application/json")) {
-        const textResponse = await response.text()
-        console.error("Non-JSON response:", textResponse)
-        throw new Error("El servidor no respondió con JSON válido. Verifica la configuración de la API.")
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error("Configuración de Supabase no encontrada. Verifica las variables de entorno.")
       }
 
-      const data = await response.json()
-      console.log("Response data:", data)
+      // Crear cliente de Supabase
+      const supabase = createClient(supabaseUrl, supabaseKey)
 
-      if (!response.ok) {
-        throw new Error(data.error || `Error del servidor: ${response.status}`)
+      console.log("Intentando registrar usuario con email:", formData.email)
+
+      // Registrar usuario en Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.fullName || "",
+            phone: formData.phone || "",
+          },
+        },
+      })
+
+      if (authError) {
+        console.error("Error de autenticación:", authError)
+        throw new Error(authError.message)
+      }
+
+      if (!authData.user) {
+        throw new Error("Error al crear el usuario")
+      }
+
+      console.log("Usuario creado exitosamente:", authData.user.id)
+
+      // Crear perfil de usuario en la tabla users
+      const { error: profileError } = await supabase.from("users").insert({
+        id: authData.user.id,
+        email: formData.email,
+        full_name: formData.fullName || null,
+        phone: formData.phone || null,
+        created_at: new Date().toISOString(),
+      })
+
+      if (profileError) {
+        console.error("Error al crear perfil:", profileError)
+        // No fallar completamente si hay error creando el perfil
+        // El usuario ya fue creado en Auth
       }
 
       setSuccess(true)
@@ -94,14 +108,8 @@ export default function RegisterPage() {
         router.push("/login")
       }, 2000)
     } catch (error: any) {
-      console.error("Registration error:", error)
-
-      // Proporcionar mensajes de error más específicos
-      if (error.name === "TypeError" && error.message.includes("fetch")) {
-        setError("No se pudo conectar con el servidor. Verifica tu conexión a internet.")
-      } else {
-        setError(error.message || "Error al crear la cuenta")
-      }
+      console.error("Error de registro:", error)
+      setError(error.message || "Error al crear la cuenta")
     } finally {
       setLoading(false)
     }
@@ -115,7 +123,8 @@ export default function RegisterPage() {
             <div className="text-center">
               <div className="text-green-600 text-4xl mb-4">✓</div>
               <h2 className="text-xl font-semibold mb-2">¡Cuenta creada exitosamente!</h2>
-              <p className="text-gray-600">Redirigiendo al login...</p>
+              <p className="text-gray-600 mb-2">Se ha enviado un email de confirmación a tu correo electrónico.</p>
+              <p className="text-sm text-gray-500">Redirigiendo al login...</p>
             </div>
           </CardContent>
         </Card>

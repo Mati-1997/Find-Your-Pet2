@@ -10,16 +10,24 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useAuth } from "@/hooks/use-auth"
 import { Loader2 } from "lucide-react"
+import { createClient } from "@supabase/supabase-js"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
-  const { signIn } = useAuth()
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,9 +35,40 @@ export default function LoginPage() {
     setError("")
 
     try {
-      await signIn(email, password)
+      // Verificar variables de entorno
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error("Configuración de Supabase no encontrada. Verifica las variables de entorno.")
+      }
+
+      // Crear cliente de Supabase
+      const supabase = createClient(supabaseUrl, supabaseKey)
+
+      console.log("Intentando iniciar sesión con email:", formData.email)
+
+      // Iniciar sesión
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      })
+
+      if (authError) {
+        console.error("Error de autenticación:", authError)
+        throw new Error(authError.message)
+      }
+
+      if (!authData.user) {
+        throw new Error("Error al iniciar sesión")
+      }
+
+      console.log("Sesión iniciada exitosamente:", authData.user.id)
+
+      // Redirigir al home
       router.push("/home")
     } catch (error: any) {
+      console.error("Error de login:", error)
       setError(error.message || "Error al iniciar sesión")
     } finally {
       setLoading(false)
@@ -55,9 +94,10 @@ export default function LoginPage() {
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.email}
+                onChange={handleChange}
                 placeholder="tu@email.com"
                 required
               />
@@ -67,9 +107,10 @@ export default function LoginPage() {
               <Label htmlFor="password">Contraseña</Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password}
+                onChange={handleChange}
                 placeholder="••••••••"
                 required
               />
@@ -82,9 +123,11 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 text-center space-y-2">
-            <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
-              ¿Olvidaste tu contraseña?
-            </Link>
+            <div className="text-sm text-gray-600">
+              <Link href="/forgot-password" className="text-blue-600 hover:underline">
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
             <div className="text-sm text-gray-600">
               ¿No tienes cuenta?{" "}
               <Link href="/register" className="text-blue-600 hover:underline">
