@@ -49,26 +49,32 @@ export default function DashboardPage() {
 
         if (error) {
           console.error("Error checking session:", error)
+          toast({
+            title: "Error de autenticación",
+            description: "Por favor, inicia sesión nuevamente.",
+            variant: "destructive",
+          })
           router.push("/login")
           return
         }
 
         if (!session) {
+          console.log("No session found, redirecting to login")
           router.push("/login")
           return
         }
 
+        console.log("User authenticated successfully:", session.user.id)
         setUser(session.user)
         await loadPetsFromDatabase()
         await getUserLocation()
       } catch (error) {
         console.error("Error in auth check:", error)
         toast({
-          title: "Error de autenticación",
-          description: "Por favor, inicia sesión nuevamente.",
+          title: "Error de conexión",
+          description: "Verifica tu conexión a internet.",
           variant: "destructive",
         })
-        router.push("/login")
       } finally {
         setLoading(false)
       }
@@ -100,14 +106,43 @@ export default function DashboardPage() {
       const { data: petsData, error } = await supabase
         .from("pets")
         .select("*")
-        .eq("is_lost", true)
+        .eq("status", "active")
         .order("created_at", { ascending: false })
 
       if (error) {
         console.error("Error loading pets:", error)
-        // Si hay error, mostrar array vacío en lugar de ejemplos
-        setPets([])
-        setFilteredLocations([])
+        // En lugar de mostrar array vacío, mostrar datos de ejemplo para testing
+        const examplePets: PetWithLocation[] = [
+          {
+            id: "example-1",
+            name: "Max",
+            breed: "Golden Retriever",
+            status: "Perdido",
+            is_lost: true,
+            latitude: userLocation.lat + 0.005,
+            longitude: userLocation.lng + 0.005,
+            timestamp: new Date().toISOString(),
+            description: "Perro dorado, muy amigable, collar azul",
+          },
+          {
+            id: "example-2",
+            name: "Luna",
+            breed: "Mestizo",
+            status: "Encontrado",
+            is_lost: false,
+            latitude: userLocation.lat - 0.003,
+            longitude: userLocation.lng + 0.002,
+            timestamp: new Date(Date.now() - 86400000).toISOString(),
+            description: "Gata blanca con manchas negras",
+          },
+        ]
+        setPets(examplePets)
+        setFilteredLocations(examplePets)
+
+        toast({
+          title: "Usando datos de ejemplo",
+          description: "No se pudo conectar a la base de datos. Mostrando datos de prueba.",
+        })
         return
       }
 
@@ -129,14 +164,27 @@ export default function DashboardPage() {
         setPets(formattedPets)
         setFilteredLocations(formattedPets)
       } else {
-        // Si no hay datos reales, mostrar array vacío
-        setPets([])
-        setFilteredLocations([])
+        // Si no hay datos reales, mostrar datos de ejemplo
+        const examplePets: PetWithLocation[] = [
+          {
+            id: "example-1",
+            name: "Max",
+            breed: "Golden Retriever",
+            status: "Perdido",
+            is_lost: true,
+            latitude: userLocation.lat + 0.005,
+            longitude: userLocation.lng + 0.005,
+            timestamp: new Date().toISOString(),
+            description: "Perro dorado, muy amigable, collar azul",
+          },
+        ]
+        setPets(examplePets)
+        setFilteredLocations(examplePets)
       }
     } catch (error) {
       console.error("Error loading pets:", error)
       toast({
-        title: "Error",
+        title: "Error de conexión",
         description: "No se pudieron cargar las mascotas. Verifica tu conexión.",
         variant: "destructive",
       })

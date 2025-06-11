@@ -10,12 +10,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { createClient } from "@/lib/supabase/client"
+import { useAuthCheck } from "@/hooks/use-auth-check"
 
 export default function EditProfilePage() {
   const router = useRouter()
   const { toast } = useToast()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading } = useAuthCheck()
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
     full_name: "",
@@ -24,36 +24,17 @@ export default function EditProfilePage() {
     location: "",
   })
 
+  // Remove the existing useEffect for auth check and replace with:
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const supabase = createClient()
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
-        if (!session) {
-          router.push("/login")
-          return
-        }
-
-        setUser(session.user)
-        setFormData({
-          full_name: session.user.user_metadata?.full_name || "",
-          phone: session.user.user_metadata?.phone || "",
-          bio: session.user.user_metadata?.bio || "",
-          location: session.user.user_metadata?.location || "Buenos Aires, Argentina",
-        })
-      } catch (error) {
-        console.error("Error checking auth:", error)
-        router.push("/login")
-      } finally {
-        setLoading(false)
-      }
+    if (!loading && user) {
+      setFormData({
+        full_name: user.user_metadata?.full_name || "",
+        phone: user.user_metadata?.phone || "",
+        bio: user.user_metadata?.bio || "",
+        location: user.user_metadata?.location || "Buenos Aires, Argentina",
+      })
     }
-
-    checkAuth()
-  }, [router])
+  }, [loading, user])
 
   const handleSave = async () => {
     setSaving(true)

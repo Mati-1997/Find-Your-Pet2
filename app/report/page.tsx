@@ -13,12 +13,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/components/ui/use-toast"
 import { createClient } from "@/lib/supabase/client"
+import { useAuthCheck } from "@/hooks/use-auth-check"
 
 export default function ReportPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading } = useAuthCheck()
   const [submitting, setSubmitting] = useState(false)
   const [userLocation, setUserLocation] = useState({ lat: -34.6037, lng: -58.3816 })
   const [formData, setFormData] = useState({
@@ -35,30 +35,10 @@ export default function ReportPage() {
   })
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const supabase = createClient()
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
-        if (!session) {
-          router.push("/login")
-          return
-        }
-
-        setUser(session.user)
-        getUserLocation()
-      } catch (error) {
-        console.error("Error checking auth:", error)
-        router.push("/login")
-      } finally {
-        setLoading(false)
-      }
+    if (!loading && user) {
+      getUserLocation()
     }
-
-    checkAuth()
-  }, [router])
+  }, [loading, user])
 
   const getUserLocation = () => {
     if (navigator.geolocation) {
