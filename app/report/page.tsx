@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Camera, MapPin, Heart, AlertTriangle, Upload, X, CheckCircle, User, PawPrint } from "lucide-react"
 import { useAuthCheck } from "@/hooks/use-auth-check"
+import { createClient } from "@/lib/supabase/client"
+import { activityService } from "@/lib/activity-service"
 
 export default function Report() {
   const router = useRouter()
@@ -56,17 +58,127 @@ export default function Report() {
     e.preventDefault()
     setSubmitting(true)
 
-    // Simular envío
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      // Validación básica
+      if (!formData.petName && reportType === "lost") {
+        throw new Error("El nombre de la mascota es requerido para reportes de pérdida")
+      }
+      if (!formData.color || !formData.description || !formData.lastSeenLocation || !formData.lastSeenDate) {
+        throw new Error("Por favor completa todos los campos requeridos")
+      }
+      if (!formData.contactName || !formData.contactPhone || !formData.contactEmail) {
+        throw new Error("La información de contacto es requerida")
+      }
 
-    setSuccess(true)
-    setSubmitting(false)
+      // Crear el objeto de mascota para guardar en la base de datos
+      const petData = {
+        name: formData.petName || "Sin nombre",
+        species: formData.petType || "otro",
+        breed: formData.breed || "Desconocida",
+        color: formData.color,
+        size: formData.size || "mediano",
+        age: formData.age || "Desconocida",
+        description: formData.description,
+        is_lost: reportType === "lost",
+        last_seen_location: formData.lastSeenLocation,
+        last_seen_date: formData.lastSeenDate,
+        contact_name: formData.contactName,
+        contact_phone: formData.contactPhone,
+        contact_email: formData.contactEmail,
+        reward: formData.reward || null,
+        owner_id: user?.id,
+        user_id: user?.id, // Agregar también user_id por compatibilidad
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
 
-    // Redirigir después de 3 segundos
-    setTimeout(() => {
-      router.push("/dashboard")
-    }, 3000)
+      console.log("Guardando mascota:", petData)
+
+      // Guardar en la base de datos
+      const supabase = createClient()
+      const { data: savedPet, error } = await supabase.from("pets").insert([petData]).select().single()
+
+      if (error) {
+        console.error("Error al guardar la mascota:", error)
+        throw new Error(`Error de base de datos: ${error.message}`)
+      }
+
+      console.log("Mascota guardada exitosamente:", savedPet)
+
+      // Registrar la actividad
+      if (user?.id) {
+        const activityType = reportType === "lost" ? "pet_lost" : "pet_found"
+        const activityDescription =
+          reportType === "lost"
+            ? `Reportaste a ${formData.petName || "una mascota"} como perdido`
+            : `Reportaste haber encontrado a ${formData.petName || "una mascota"}`
+
+        const activityResult = await activityService.createActivity({
+          user_id: user.id,
+          type: activityType as any,
+          description: activityDescription,
+          points: 50,
+          metadata: {
+            pet_id: savedPet.id,
+            pet_name: formData.petName || "Sin nombre",
+            pet_type: formData.petType || "otro",
+            location: formData.lastSeenLocation,
+            report_type: reportType,
+          },
+        })
+
+        console.log("Resultado de actividad:", activityResult)
+      }
+
+      // Subir imágenes si hay
+      if (images.length > 0 && savedPet?.id) {
+        console.log("Subiendo imágenes...")
+        for (let i = 0; i < images.length; i++) {
+          const image = images[i]
+          const fileExt = image.name.split(".").pop()
+          const fileName = `${savedPet.id}-${Date.now()}-${i}.${fileExt}`
+          const filePath = `pet-images/${fileName}`
+
+          const { error: uploadError } = await supabase.storage.from("pets").upload(filePath, image)
+
+          if (uploadError) {
+            console.error("Error al subir imagen:", uploadError)
+            // Continuamos aunque falle la subida de imágenes
+          } else {
+            console.log("Imagen subida:", filePath)
+            // Actualizar la mascota con la URL de la imagen (solo la primera)
+            if (i === 0) {
+              const { data: publicURL } = supabase.storage.from("pets").getPublicUrl(filePath)
+              if (publicURL) {
+                await supabase.from("pets").update({ image_url: publicURL.publicUrl }).eq("id", savedPet.id)
+              }
+            }
+          }
+        }
+      }
+
+      // Solo establecer success como true si todo salió bien
+      setSuccess(true)
+      console.log("Reporte completado exitosamente")
+    } catch (error) {
+      console.error("Error en el proceso de reporte:", error)
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido al procesar el reporte"
+      alert(errorMessage)
+    } finally {
+      setSubmitting(false)
+    }
   }
+
+  // Agregar useEffect para manejar la redirección
+  React.useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        router.push("/dashboard")
+      }, 3000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [success, router])
 
   if (loading) {
     return (
