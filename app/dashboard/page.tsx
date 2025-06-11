@@ -30,7 +30,7 @@ interface PetWithLocation {
 export default function DashboardPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { user, loading } = useAuthCheck()
+  const { user, loading, isAuthenticated } = useAuthCheck()
   const [pets, setPets] = useState<PetWithLocation[]>([])
   const [activeTab, setActiveTab] = useState("map")
   const [searchQuery, setSearchQuery] = useState("")
@@ -39,11 +39,22 @@ export default function DashboardPage() {
 
   // Verificar autenticación y cargar datos
   useEffect(() => {
-    if (!loading && user) {
-      loadPetsFromDatabase()
-      getUserLocation()
+    if (!loading) {
+      if (!isAuthenticated) {
+        console.log("No authenticated user, redirecting to login")
+        toast({
+          title: "Inicia sesión",
+          description: "Necesitas iniciar sesión para acceder al dashboard",
+          variant: "destructive",
+        })
+        router.push("/login")
+      } else {
+        console.log("User authenticated, loading data")
+        loadPetsFromDatabase()
+        getUserLocation()
+      }
     }
-  }, [loading, user])
+  }, [loading, isAuthenticated, router])
 
   const getUserLocation = () => {
     if (navigator.geolocation) {
@@ -201,7 +212,17 @@ export default function DashboardPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
+          <p className="text-gray-600">Verificando autenticación...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Redirigiendo al login...</p>
         </div>
       </div>
     )

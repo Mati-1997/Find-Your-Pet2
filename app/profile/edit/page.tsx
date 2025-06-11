@@ -17,7 +17,7 @@ import { useAuthCheck } from "@/hooks/use-auth-check"
 export default function EditProfilePage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { user, loading } = useAuthCheck()
+  const { user, loading, isAuthenticated } = useAuthCheck()
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
     full_name: "",
@@ -27,16 +27,25 @@ export default function EditProfilePage() {
   })
 
   useEffect(() => {
-    if (!loading && user) {
-      // Load existing user data
-      setFormData({
-        full_name: user.user_metadata?.full_name || "",
-        phone: user.user_metadata?.phone || "",
-        location: user.user_metadata?.location || "Buenos Aires, Argentina",
-        bio: user.user_metadata?.bio || "",
-      })
+    if (!loading) {
+      if (!isAuthenticated) {
+        toast({
+          title: "Inicia sesión",
+          description: "Necesitas iniciar sesión para editar tu perfil",
+          variant: "destructive",
+        })
+        router.push("/login")
+      } else if (user) {
+        // Load existing user data
+        setFormData({
+          full_name: user.user_metadata?.full_name || "",
+          phone: user.user_metadata?.phone || "",
+          location: user.user_metadata?.location || "Buenos Aires, Argentina",
+          bio: user.user_metadata?.bio || "",
+        })
+      }
     }
-  }, [loading, user])
+  }, [loading, isAuthenticated, user, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,6 +91,16 @@ export default function EditProfilePage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Redirigiendo al login...</p>
         </div>
       </div>
     )

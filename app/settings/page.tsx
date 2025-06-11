@@ -13,7 +13,7 @@ import { useAuthCheck } from "@/hooks/use-auth-check"
 export default function SettingsPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { user, loading } = useAuthCheck()
+  const { user, loading, isAuthenticated } = useAuthCheck()
   const [settings, setSettings] = useState({
     notifications: true,
     locationSharing: true,
@@ -23,10 +23,19 @@ export default function SettingsPage() {
   })
 
   useEffect(() => {
-    if (!loading && user) {
-      loadUserSettings()
+    if (!loading) {
+      if (!isAuthenticated) {
+        toast({
+          title: "Inicia sesión",
+          description: "Necesitas iniciar sesión para acceder a la configuración",
+          variant: "destructive",
+        })
+        router.push("/login")
+      } else {
+        loadUserSettings()
+      }
     }
-  }, [loading, user])
+  }, [loading, isAuthenticated, router])
 
   const loadUserSettings = () => {
     // Cargar configuraciones guardadas del localStorage
@@ -84,6 +93,16 @@ export default function SettingsPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Redirigiendo al login...</p>
         </div>
       </div>
     )

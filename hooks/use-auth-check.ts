@@ -1,14 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import type { User } from "@supabase/supabase-js"
 
-export function useAuthCheck(redirectOnNoAuth = true) {
+export function useAuthCheck(options = { redirectOnNoAuth: false }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -25,29 +24,15 @@ export function useAuthCheck(redirectOnNoAuth = true) {
           hasSession: !!session,
           userId: session?.user?.id,
           error: error?.message,
-          redirectOnNoAuth,
         })
 
-        if (error) {
-          console.error("Session error:", error)
-          if (redirectOnNoAuth) {
-            router.push("/login")
-          }
-          setLoading(false)
-          return
+        if (session?.user) {
+          setUser(session.user)
+          setIsAuthenticated(true)
+        } else {
+          setUser(null)
+          setIsAuthenticated(false)
         }
-
-        if (!session) {
-          console.log("No session found")
-          if (redirectOnNoAuth) {
-            router.push("/login")
-          }
-          setLoading(false)
-          return
-        }
-
-        setUser(session.user)
-        setLoading(false)
 
         // Listen for auth changes
         const {
@@ -55,28 +40,27 @@ export function useAuthCheck(redirectOnNoAuth = true) {
         } = supabase.auth.onAuthStateChange(async (event, session) => {
           console.log("Auth state changed:", event, !!session)
 
-          if (event === "SIGNED_OUT" || !session) {
-            setUser(null)
-            if (redirectOnNoAuth) {
-              router.push("/login")
-            }
-          } else if (session) {
+          if (session?.user) {
             setUser(session.user)
+            setIsAuthenticated(true)
+          } else {
+            setUser(null)
+            setIsAuthenticated(false)
           }
         })
+
+        setLoading(false)
 
         return () => subscription.unsubscribe()
       } catch (error) {
         console.error("Auth check error:", error)
-        if (redirectOnNoAuth) {
-          router.push("/login")
-        }
         setLoading(false)
+        setIsAuthenticated(false)
       }
     }
 
     checkAuth()
-  }, [router, redirectOnNoAuth])
+  }, [])
 
-  return { user, loading }
+  return { user, loading, isAuthenticated }
 }

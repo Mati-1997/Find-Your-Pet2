@@ -25,18 +25,27 @@ interface GPSDevice {
 export default function TrackingPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { user, loading } = useAuthCheck()
+  const { user, loading, isAuthenticated } = useAuthCheck()
   const [devices, setDevices] = useState<GPSDevice[]>([])
   const [selectedDevice, setSelectedDevice] = useState<GPSDevice | null>(null)
   const [isTracking, setIsTracking] = useState(false)
   const [userLocation, setUserLocation] = useState({ lat: -34.6037, lng: -58.3816 })
 
   useEffect(() => {
-    if (!loading && user) {
-      loadGPSDevices()
-      getUserLocation()
+    if (!loading) {
+      if (!isAuthenticated) {
+        toast({
+          title: "Inicia sesión",
+          description: "Necesitas iniciar sesión para usar el tracking GPS",
+          variant: "destructive",
+        })
+        router.push("/login")
+      } else {
+        loadGPSDevices()
+        getUserLocation()
+      }
     }
-  }, [loading, user])
+  }, [loading, isAuthenticated, router])
 
   const getUserLocation = () => {
     if (navigator.geolocation) {
@@ -127,6 +136,16 @@ export default function TrackingPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Redirigiendo al login...</p>
         </div>
       </div>
     )

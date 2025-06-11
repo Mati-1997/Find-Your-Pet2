@@ -13,15 +13,24 @@ import { useAuthCheck } from "@/hooks/use-auth-check"
 export default function ProfilePage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { user, loading } = useAuthCheck()
+  const { user, loading, isAuthenticated } = useAuthCheck()
   const [userPets, setUserPets] = useState<any[]>([])
 
   // Remove the existing useEffect for auth check and replace with:
   useEffect(() => {
-    if (!loading && user) {
-      loadUserPets(user.id)
+    if (!loading) {
+      if (!isAuthenticated) {
+        toast({
+          title: "Inicia sesión",
+          description: "Necesitas iniciar sesión para ver tu perfil",
+          variant: "destructive",
+        })
+        router.push("/login")
+      } else if (user) {
+        loadUserPets(user.id)
+      }
     }
-  }, [loading, user])
+  }, [loading, isAuthenticated, user, router])
 
   const loadUserPets = async (userId: string) => {
     try {
@@ -49,6 +58,16 @@ export default function ProfilePage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando perfil...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Redirigiendo al login...</p>
         </div>
       </div>
     )
