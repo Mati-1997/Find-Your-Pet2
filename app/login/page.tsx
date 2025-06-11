@@ -5,101 +5,73 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Loader2, CheckCircle2 } from "lucide-react"
-import { getSupabaseClient } from "@/lib/supabase/client"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { CheckCircle } from "lucide-react"
 
 export default function LoginPage() {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  })
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
+  const verified = searchParams.get("verified") === "true"
+  const errorParam = searchParams.get("error")
+  const errorDescription = searchParams.get("error_description")
 
   useEffect(() => {
-    // Verificar si hay parámetros de error o éxito en la URL
-    const errorParam = searchParams.get("error")
-    const messageParam = searchParams.get("message")
-
-    if (errorParam === "verification_failed") {
-      setError("Error al verificar el email. Por favor, intenta de nuevo.")
-    } else if (errorParam === "callback_error") {
-      setError("Error en la verificación. Por favor, contacta soporte.")
-    } else if (messageParam === "email_verified") {
-      setSuccess("¡Email verificado exitosamente! Ahora puedes iniciar sesión.")
+    if (errorParam && errorDescription) {
+      setError(`${errorDescription}`)
     }
 
-    // Verificar si ya hay una sesión activa
+    // Verificar si el usuario ya está autenticado
     const checkSession = async () => {
-      try {
-        const supabase = getSupabaseClient()
-        const { data, error } = await supabase.auth.getSession()
+      const supabase = createClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
 
-        if (data.session) {
-          console.log("Sesión activa encontrada, redirigiendo...")
-          router.push("/home")
-        }
-      } catch (error) {
-        console.error("Error checking session:", error)
+      if (session) {
+        console.log("Usuario ya autenticado, redirigiendo...")
+        router.push("/home")
       }
     }
 
     checkSession()
-  }, [router, searchParams])
+  }, [errorParam, errorDescription, router])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError("")
+    setError(null)
 
     try {
-      const supabase = getSupabaseClient()
+      console.log("Intentando iniciar sesión con email:", email)
+      const supabase = createClient()
 
-      console.log("Intentando iniciar sesión con email:", formData.email)
-
-      // Iniciar sesión
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
+        email,
+        password,
       })
 
       if (error) {
-        console.error("Error de autenticación:", error)
-
-        if (error.message.includes("Email not confirmed")) {
-          throw new Error("Por favor, verifica tu email antes de iniciar sesión. Revisa tu bandeja de entrada.")
-        } else if (error.message.includes("Invalid login credentials")) {
-          throw new Error("Email o contraseña incorrectos.")
-        } else {
-          throw new Error(error.message)
-        }
+        console.error("Error de login:", error.message)
+        throw error
       }
 
-      if (!data.user) {
-        throw new Error("Error al iniciar sesión")
-      }
+      console.log("Sesión iniciada exitosamente:", data.session?.user.id)
+      setSuccess("Inicio de sesión exitoso")
 
-      console.log("Sesión iniciada exitosamente:", data.user.id)
-
-      // Redirigir al home
-      router.push("/home")
+      // Redirigir al usuario después de un inicio de sesión exitoso
+      setTimeout(() => {
+        router.push("/home")
+      }, 1000)
     } catch (error: any) {
-      console.error("Error de login:", error)
+      console.error("Error en login:", error)
       setError(error.message || "Error al iniciar sesión")
     } finally {
       setLoading(false)
@@ -107,75 +79,81 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-primary">Find Your Pet</CardTitle>
-          <CardDescription>Inicia sesión en tu cuenta</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Find Your Pet</h1>
+          <p className="text-gray-600 mt-2">Inicia sesión en tu cuenta</p>
+        </div>
 
-            {success && (
-              <Alert className="border-green-200 bg-green-50">
-                <CheckCircle2 className="h-4 w-4 text-green-600 mr-2" />
-                <AlertTitle className="text-green-800 font-medium">¡Email verificado!</AlertTitle>
-                <AlertDescription className="text-green-700">{success}</AlertDescription>
-              </Alert>
-            )}
+        {verified && (
+          <Alert className="bg-green-50 border-green-200">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            <AlertDescription className="text-green-700">
+              ¡Tu correo ha sido verificado correctamente! Ahora puedes iniciar sesión.
+            </AlertDescription>
+          </Alert>
+        )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="tu@email.com"
-                required
-              />
-            </div>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="••••••••"
-                required
-              />
-            </div>
+        {success && (
+          <Alert className="bg-green-50 border-green-200">
+            <AlertDescription className="text-green-700">{success}</AlertDescription>
+          </Alert>
+        )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Iniciar Sesión
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center space-y-2">
-            <div className="text-sm text-gray-600">
-              <Link href="/forgot-password" className="text-blue-600 hover:underline">
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </div>
-            <div className="text-sm text-gray-600">
-              ¿No tienes cuenta?{" "}
-              <Link href="/register" className="text-blue-600 hover:underline">
-                Regístrate
-              </Link>
-            </div>
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div className="space-y-2">
+            <label htmlFor="email" className="block text-sm font-medium">
+              Email
+            </label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="tu@email.com"
+            />
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="space-y-2">
+            <label htmlFor="password" className="block text-sm font-medium">
+              Contraseña
+            </label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="••••••••"
+            />
+          </div>
+
+          <Button type="submit" className="w-full bg-black hover:bg-gray-800" disabled={loading}>
+            {loading ? "Iniciando Sesión..." : "Iniciar Sesión"}
+          </Button>
+        </form>
+
+        <div className="text-center text-sm">
+          <Link href="/forgot-password" className="text-blue-600 hover:underline">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
+
+        <div className="text-center text-sm">
+          ¿No tienes cuenta?{" "}
+          <Link href="/register" className="text-blue-600 hover:underline">
+            Regístrate
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }
