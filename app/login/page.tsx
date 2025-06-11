@@ -38,11 +38,11 @@ export default function LoginPage() {
       }
 
       console.log("Sesión iniciada exitosamente:", data.session?.user.id)
-      setSuccess("Inicio de sesión exitoso")
+      setSuccess("Inicio de sesión exitoso - Redirigiendo...")
 
-      // Redirigir después de un breve delay
+      // Redirigir a dashboard en lugar de home
       setTimeout(() => {
-        window.location.href = "/home"
+        window.location.href = "/dashboard"
       }, 1500)
     } catch (error: any) {
       console.error("Error en login:", error)
