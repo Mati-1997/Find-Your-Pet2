@@ -8,11 +8,13 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { MapPin, Search, PlusCircle, Bell, User, LogOut } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const { toast } = useToast()
 
   useEffect(() => {
     const getUser = async () => {
@@ -33,9 +35,32 @@ export default function DashboardPage() {
   }, [router])
 
   const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push("/login")
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+      toast({
+        title: "Sesión cerrada",
+        description: "Has cerrado sesión exitosamente",
+      })
+      router.push("/login")
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo cerrar la sesión",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleNavigation = (path: string, name: string) => {
+    console.log(`Navegando a: ${path}`)
+    toast({
+      title: "Navegación",
+      description: `Ir a ${name}`,
+    })
+    // Por ahora solo mostramos un toast, luego implementaremos las páginas
+    // router.push(path)
   }
 
   if (loading) {
@@ -54,7 +79,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
@@ -80,10 +105,18 @@ export default function DashboardPage() {
               <h2 className="text-2xl font-bold mb-2">¡Bienvenido a Find Your Pet!</h2>
               <p className="mb-4">Tu plataforma para encontrar mascotas perdidas usando tecnología avanzada</p>
               <div className="flex space-x-2">
-                <Button variant="secondary" className="bg-white text-blue-600 hover:bg-gray-100">
+                <Button
+                  variant="secondary"
+                  className="bg-white text-blue-600 hover:bg-gray-100"
+                  onClick={() => handleNavigation("/report", "Reportar mascota")}
+                >
                   Reportar mascota perdida
                 </Button>
-                <Button variant="outline" className="border-white text-white hover:bg-white/20">
+                <Button
+                  variant="outline"
+                  className="border-white text-white hover:bg-white/20"
+                  onClick={() => handleNavigation("/search", "Buscar mascotas")}
+                >
                   Buscar mascotas
                 </Button>
               </div>
@@ -99,25 +132,25 @@ export default function DashboardPage() {
               title="Buscar Mascota"
               description="Usa IA para encontrar mascotas"
               icon={<Search className="w-6 h-6" />}
-              onClick={() => router.push("/ai-recognition")}
+              onClick={() => handleNavigation("/search", "Buscar Mascota")}
             />
             <ActionCard
               title="Ver Mapa"
               description="Ubicaciones de mascotas perdidas"
               icon={<MapPin className="w-6 h-6" />}
-              onClick={() => router.push("/tracking")}
+              onClick={() => handleNavigation("/map", "Ver Mapa")}
             />
             <ActionCard
               title="Reportar"
               description="Reporta una mascota perdida"
               icon={<PlusCircle className="w-6 h-6" />}
-              onClick={() => router.push("/report")}
+              onClick={() => handleNavigation("/report", "Reportar")}
             />
             <ActionCard
               title="Alertas"
               description="Configura alertas personalizadas"
               icon={<Bell className="w-6 h-6" />}
-              onClick={() => router.push("/alerts")}
+              onClick={() => handleNavigation("/alerts", "Alertas")}
             />
           </div>
         </section>
@@ -146,7 +179,7 @@ export default function DashboardPage() {
           <Button
             variant="ghost"
             className="flex flex-col items-center justify-center h-full rounded-none"
-            onClick={() => router.push("/ai-recognition")}
+            onClick={() => handleNavigation("/search", "Buscar")}
           >
             <Search className="w-5 h-5" />
             <span className="text-xs mt-1">Buscar</span>
@@ -154,7 +187,7 @@ export default function DashboardPage() {
           <Button
             variant="ghost"
             className="flex flex-col items-center justify-center h-full rounded-none"
-            onClick={() => router.push("/tracking")}
+            onClick={() => handleNavigation("/map", "Mapa")}
           >
             <MapPin className="w-5 h-5" />
             <span className="text-xs mt-1">Mapa</span>
@@ -162,7 +195,7 @@ export default function DashboardPage() {
           <Button
             variant="ghost"
             className="flex flex-col items-center justify-center h-full rounded-none text-primary"
-            onClick={() => router.push("/report")}
+            onClick={() => handleNavigation("/report", "Reportar")}
           >
             <PlusCircle className="w-5 h-5 text-primary" />
             <span className="text-xs mt-1">Reportar</span>
@@ -170,7 +203,7 @@ export default function DashboardPage() {
           <Button
             variant="ghost"
             className="flex flex-col items-center justify-center h-full rounded-none"
-            onClick={() => router.push("/profile")}
+            onClick={() => handleNavigation("/profile", "Perfil")}
           >
             <User className="w-5 h-5" />
             <span className="text-xs mt-1">Perfil</span>
