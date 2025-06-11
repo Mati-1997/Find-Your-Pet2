@@ -17,7 +17,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [redirecting, setRedirecting] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const verified = searchParams.get("verified") === "true"
@@ -38,8 +37,7 @@ export default function LoginPage() {
 
       if (session) {
         console.log("Usuario ya autenticado, redirigiendo...")
-        setRedirecting(true)
-        router.push("/home")
+        router.replace("/home")
       }
     }
 
@@ -68,30 +66,15 @@ export default function LoginPage() {
 
       console.log("Sesión iniciada exitosamente:", data.session?.user.id)
       setSuccess("Inicio de sesión exitoso")
-      setRedirecting(true)
 
-      // Redirigir al home con todas las funcionalidades
-      setTimeout(() => {
-        console.log("Redirigiendo a /home...")
-        router.push("/home")
-      }, 2000)
+      // Redirigir inmediatamente sin timeout
+      router.replace("/home")
     } catch (error: any) {
       console.error("Error en login:", error)
       setError(error.message || "Error al iniciar sesión")
     } finally {
       setLoading(false)
     }
-  }
-
-  if (redirecting) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Redirigiendo...</p>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -156,7 +139,7 @@ export default function LoginPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full bg-black hover:bg-gray-800" disabled={loading || redirecting}>
+          <Button type="submit" className="w-full bg-black hover:bg-gray-800" disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
