@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import type React from "react"
+
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Search, Camera, Upload, Filter, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -22,6 +24,7 @@ export default function SearchPage() {
     status: "all",
     distance: "all",
   })
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -50,41 +53,39 @@ export default function SearchPage() {
   }, [router])
 
   const loadSearchResults = async () => {
-    // Simular resultados de búsqueda
-    const mockResults = [
-      {
-        id: "1",
-        name: "Max",
-        breed: "Golden Retriever",
-        status: "Perdido",
-        location: "Palermo, Buenos Aires",
-        distance: "2.3 km",
-        time: "hace 3 horas",
-        image: "/placeholder.svg?height=100&width=100",
-      },
-      {
-        id: "2",
-        name: "Luna",
-        breed: "Gato Persa",
-        status: "Encontrado",
-        location: "Recoleta, Buenos Aires",
-        distance: "1.8 km",
-        time: "hace 1 día",
-        image: "/placeholder.svg?height=100&width=100",
-      },
-      {
-        id: "3",
-        name: "Rocky",
-        breed: "Bulldog Francés",
-        status: "Perdido",
-        location: "San Telmo, Buenos Aires",
-        distance: "4.1 km",
-        time: "hace 2 días",
-        image: "/placeholder.svg?height=100&width=100",
-      },
-    ]
+    try {
+      const supabase = createClient()
+      const { data: petsData, error } = await supabase
+        .from("pets")
+        .select("*")
+        .eq("is_lost", true)
+        .order("created_at", { ascending: false })
 
-    setSearchResults(mockResults)
+      if (error) {
+        console.error("Error loading pets:", error)
+        setSearchResults([])
+        return
+      }
+
+      if (petsData && petsData.length > 0) {
+        const formattedResults = petsData.map((pet) => ({
+          id: pet.id,
+          name: pet.name,
+          breed: pet.breed || "Raza desconocida",
+          status: pet.is_lost ? "Perdido" : "Encontrado",
+          location: "Buenos Aires, Argentina", // Placeholder
+          distance: "2.3 km", // Placeholder
+          time: "hace 3 horas", // Placeholder
+          image: pet.image_url || "/placeholder.svg?height=100&width=100",
+        }))
+        setSearchResults(formattedResults)
+      } else {
+        setSearchResults([])
+      }
+    } catch (error) {
+      console.error("Error loading search results:", error)
+      setSearchResults([])
+    }
   }
 
   const handleSearch = () => {
@@ -95,19 +96,49 @@ export default function SearchPage() {
     // Aquí iría la lógica real de búsqueda
   }
 
-  const handleImageSearch = () => {
-    toast({
-      title: "Búsqueda por imagen",
-      description: "Función de reconocimiento de imágenes activada",
-    })
-    router.push("/ai-recognition")
+  const handleImageUpload = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click()
+    }
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      toast({
+        title: "Imagen seleccionada",
+        description: `Procesando imagen: ${file.name}`,
+      })
+      // Aquí iría la lógica de procesamiento de imagen
+    }
   }
 
   const handleCameraSearch = () => {
-    toast({
-      title: "Búsqueda con cámara",
-      description: "Abriendo cámara para búsqueda...",
-    })
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices
+        .getUserMedia({ video: true })
+        .then((stream) => {
+          toast({
+            title: "Cámara activada",
+            description: "Función de cámara en desarrollo",
+          })
+          // Detener el stream inmediatamente para este demo
+          stream.getTracks().forEach((track) => track.stop())
+        })
+        .catch((error) => {
+          toast({
+            title: "Error de cámara",
+            description: "No se pudo acceder a la cámara",
+            variant: "destructive",
+          })
+        })
+    } else {
+      toast({
+        title: "Cámara no disponible",
+        description: "Tu dispositivo no soporta acceso a cámara",
+        variant: "destructive",
+      })
+    }
   }
 
   if (loading) {
@@ -168,11 +199,12 @@ export default function SearchPage() {
                 <Camera className="w-6 h-6 mb-2" />
                 <span className="text-sm">Tomar Foto</span>
               </Button>
-              <Button variant="outline" className="h-20 flex-col" onClick={handleImageSearch}>
+              <Button variant="outline" className="h-20 flex-col" onClick={handleImageUpload}>
                 <Upload className="w-6 h-6 mb-2" />
                 <span className="text-sm">Subir Imagen</span>
               </Button>
             </div>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
           </CardContent>
         </Card>
 
@@ -214,37 +246,45 @@ export default function SearchPage() {
             <CardTitle>Resultados ({searchResults.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {searchResults.map((pet) => (
-                <Card
-                  key={pet.id}
-                  className="cursor-pointer hover:border-primary transition-colors"
-                  onClick={() => router.push(`/pet-detail?id=${pet.id}`)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex space-x-4">
-                      <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <span className="text-gray-500 text-sm">🐕</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="font-semibold">{pet.name}</h3>
-                            <p className="text-sm text-gray-600">{pet.breed}</p>
-                            <div className="flex items-center mt-1 text-xs text-gray-500">
-                              <MapPin className="w-3 h-3 mr-1" />
-                              {pet.location} • {pet.distance}
+            {searchResults.length > 0 ? (
+              <div className="space-y-4">
+                {searchResults.map((pet) => (
+                  <Card
+                    key={pet.id}
+                    className="cursor-pointer hover:border-primary transition-colors"
+                    onClick={() => router.push(`/pet-detail?id=${pet.id}`)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex space-x-4">
+                        <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <span className="text-gray-500 text-sm">🐕</span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="font-semibold">{pet.name}</h3>
+                              <p className="text-sm text-gray-600">{pet.breed}</p>
+                              <div className="flex items-center mt-1 text-xs text-gray-500">
+                                <MapPin className="w-3 h-3 mr-1" />
+                                {pet.location} • {pet.distance}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">{pet.time}</p>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">{pet.time}</p>
+                            <Badge variant={pet.status === "Perdido" ? "destructive" : "default"}>{pet.status}</Badge>
                           </div>
-                          <Badge variant={pet.status === "Perdido" ? "destructive" : "default"}>{pet.status}</Badge>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Search className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                <p>No hay mascotas reportadas</p>
+                <p className="text-sm mt-2">Sé el primero en reportar una mascota</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

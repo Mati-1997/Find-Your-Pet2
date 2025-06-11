@@ -100,9 +100,9 @@ export default function DashboardPage() {
 
       if (error) {
         console.error("Error loading pets:", error)
-        // Usar datos de ejemplo si hay error
-        setPets(getExamplePets())
-        setFilteredLocations(getExamplePets())
+        // Si hay error, mostrar array vacío en lugar de ejemplos
+        setPets([])
+        setFilteredLocations([])
         return
       }
 
@@ -124,54 +124,16 @@ export default function DashboardPage() {
         setPets(formattedPets)
         setFilteredLocations(formattedPets)
       } else {
-        // Si no hay datos reales, usar ejemplos
-        const examplePets = getExamplePets()
-        setPets(examplePets)
-        setFilteredLocations(examplePets)
+        // Si no hay datos reales, mostrar array vacío
+        setPets([])
+        setFilteredLocations([])
       }
     } catch (error) {
       console.error("Error loading pets:", error)
-      const examplePets = getExamplePets()
-      setPets(examplePets)
-      setFilteredLocations(examplePets)
+      setPets([])
+      setFilteredLocations([])
     }
   }
-
-  const getExamplePets = (): PetWithLocation[] => [
-    {
-      id: "1",
-      name: "Max",
-      breed: "Golden Retriever",
-      status: "Perdido",
-      is_lost: true,
-      latitude: userLocation.lat + 0.005,
-      longitude: userLocation.lng + 0.005,
-      timestamp: new Date().toISOString(),
-      description: "Perro dorado, muy amigable",
-    },
-    {
-      id: "2",
-      name: "Luna",
-      breed: "Gato Persa",
-      status: "Perdido",
-      is_lost: true,
-      latitude: userLocation.lat - 0.005,
-      longitude: userLocation.lng - 0.005,
-      timestamp: new Date().toISOString(),
-      description: "Gata blanca con ojos azules",
-    },
-    {
-      id: "3",
-      name: "Rocky",
-      breed: "Bulldog",
-      status: "Perdido",
-      is_lost: true,
-      latitude: userLocation.lat + 0.003,
-      longitude: userLocation.lng - 0.003,
-      timestamp: new Date().toISOString(),
-      description: "Bulldog francés, color gris",
-    },
-  ]
 
   const handleLogout = async () => {
     try {
@@ -287,7 +249,7 @@ export default function DashboardPage() {
                 <Button
                   variant="outline"
                   className="border-white text-white hover:bg-white/20"
-                  onClick={() => router.push("/ai-recognition")}
+                  onClick={() => router.push("/search")}
                 >
                   Buscar
                 </Button>
@@ -308,24 +270,37 @@ export default function DashboardPage() {
             <TabsTrigger value="list">Lista</TabsTrigger>
           </TabsList>
           <TabsContent value="map" className="mt-4">
-            <MapView
-              petLocations={filteredLocations.map((pet) => ({
-                id: pet.id,
-                name: pet.name,
-                latitude: pet.latitude || userLocation.lat,
-                longitude: pet.longitude || userLocation.lng,
-                timestamp: pet.timestamp || new Date().toISOString(),
-                status: pet.is_lost ? "lost" : "found",
-                imageUrl: pet.image_url,
-              }))}
-              height="400px"
-              onMarkerClick={handlePetClick}
-              initialViewState={{
-                latitude: userLocation.lat,
-                longitude: userLocation.lng,
-                zoom: 13,
-              }}
-            />
+            {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
+              <MapView
+                petLocations={filteredLocations.map((pet) => ({
+                  id: pet.id,
+                  name: pet.name,
+                  latitude: pet.latitude || userLocation.lat,
+                  longitude: pet.longitude || userLocation.lng,
+                  timestamp: pet.timestamp || new Date().toISOString(),
+                  status: pet.is_lost ? "lost" : "found",
+                  imageUrl: pet.image_url,
+                }))}
+                height="400px"
+                onMarkerClick={handlePetClick}
+                initialViewState={{
+                  latitude: userLocation.lat,
+                  longitude: userLocation.lng,
+                  zoom: 13,
+                }}
+              />
+            ) : (
+              <Card className="h-96 flex items-center justify-center">
+                <CardContent className="text-center">
+                  <MapPin className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="font-medium mb-2">Mapa no disponible</h3>
+                  <p className="text-sm text-gray-500">
+                    Configure la API key de Google Maps en las variables de entorno
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
           <TabsContent value="list" className="mt-4">
             <div className="space-y-4">
@@ -370,7 +345,8 @@ export default function DashboardPage() {
               ) : (
                 <div className="text-center py-8 text-gray-500">
                   <Search className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                  <p>No se encontraron resultados para "{searchQuery}"</p>
+                  <p>No hay mascotas reportadas</p>
+                  <p className="text-sm mt-2">Sé el primero en reportar una mascota perdida</p>
                 </div>
               )}
             </div>
@@ -388,16 +364,10 @@ export default function DashboardPage() {
               onClick={() => router.push("/tracking")}
             />
             <MethodCard
-              title="IA"
-              icon="🤖"
-              description="Reconocimiento facial con IA"
-              onClick={() => router.push("/ai-recognition")}
-            />
-            <MethodCard
               title="Fotos"
               icon="📸"
               description="Comparación de fotos"
-              onClick={() => router.push("/ai-recognition")}
+              onClick={() => router.push("/search")}
             />
             <MethodCard
               title="Huella nasal"
@@ -406,12 +376,6 @@ export default function DashboardPage() {
               onClick={() =>
                 toast({ title: "Huella nasal", description: "Función en desarrollo - Próximamente disponible" })
               }
-            />
-            <MethodCard
-              title="NFC"
-              icon="📱"
-              description="Escaneo de chip NFC"
-              onClick={() => toast({ title: "NFC", description: "Función en desarrollo - Próximamente disponible" })}
             />
             <MethodCard
               title="Redes"
@@ -437,7 +401,11 @@ export default function DashboardPage() {
           <Button
             variant="ghost"
             className="flex flex-col items-center justify-center h-full rounded-none"
-            onClick={() => setActiveTab("map")}
+            onClick={() => {
+              setActiveTab("map")
+              // Scroll to map section
+              document.querySelector('[data-state="active"]')?.scrollIntoView({ behavior: "smooth" })
+            }}
           >
             <MapPin className="w-5 h-5" />
             <span className="text-xs mt-1">Mapa</span>

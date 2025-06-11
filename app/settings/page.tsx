@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, User, Bell, MapPin, Shield, CreditCard, Globe } from "lucide-react"
+import { ArrowLeft, User, Bell, MapPin, Shield, CreditCard, Globe, Moon, Sun } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
@@ -37,6 +37,7 @@ export default function SettingsPage() {
         }
 
         setUser(session.user)
+        loadUserSettings()
       } catch (error) {
         console.error("Error checking auth:", error)
         router.push("/login")
@@ -48,12 +49,54 @@ export default function SettingsPage() {
     checkAuth()
   }, [router])
 
+  const loadUserSettings = () => {
+    // Cargar configuraciones guardadas del localStorage
+    const savedSettings = localStorage.getItem("userSettings")
+    if (savedSettings) {
+      const parsed = JSON.parse(savedSettings)
+      setSettings(parsed)
+
+      // Aplicar modo oscuro si está activado
+      if (parsed.darkMode) {
+        document.documentElement.classList.add("dark")
+      }
+    }
+  }
+
   const handleSettingChange = (key: string, value: any) => {
-    setSettings((prev) => ({ ...prev, [key]: value }))
-    toast({
-      title: "Configuración actualizada",
-      description: "Los cambios se han guardado correctamente",
-    })
+    const newSettings = { ...settings, [key]: value }
+    setSettings(newSettings)
+
+    // Guardar en localStorage
+    localStorage.setItem("userSettings", JSON.stringify(newSettings))
+
+    // Aplicar cambios inmediatamente
+    if (key === "darkMode") {
+      if (value) {
+        document.documentElement.classList.add("dark")
+        document.body.classList.add("dark")
+      } else {
+        document.documentElement.classList.remove("dark")
+        document.body.classList.remove("dark")
+      }
+    }
+
+    if (key === "language") {
+      // Aquí podrías implementar el cambio de idioma
+      toast({
+        title: "Idioma cambiado",
+        description: `Idioma cambiado a ${value === "es" ? "Español" : value === "en" ? "English" : "Português"}`,
+      })
+    } else {
+      toast({
+        title: "Configuración actualizada",
+        description: "Los cambios se han guardado correctamente",
+      })
+    }
+  }
+
+  const handleEditProfile = () => {
+    router.push("/profile/edit")
   }
 
   if (loading) {
@@ -99,7 +142,7 @@ export default function SettingsPage() {
                 <p className="text-sm text-gray-500">{user?.email}</p>
               </div>
             </div>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" onClick={handleEditProfile}>
               Editar Perfil
             </Button>
           </CardContent>
@@ -180,9 +223,12 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Modo oscuro</p>
-                <p className="text-sm text-gray-500">Cambiar a tema oscuro</p>
+              <div className="flex items-center">
+                {settings.darkMode ? <Moon className="w-4 h-4 mr-2" /> : <Sun className="w-4 h-4 mr-2" />}
+                <div>
+                  <p className="font-medium">Modo oscuro</p>
+                  <p className="text-sm text-gray-500">Cambiar a tema oscuro</p>
+                </div>
               </div>
               <Switch
                 checked={settings.darkMode}
@@ -196,9 +242,9 @@ export default function SettingsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="es">Español</SelectItem>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="pt">Português</SelectItem>
+                  <SelectItem value="es">🇪🇸 Español</SelectItem>
+                  <SelectItem value="en">🇺🇸 English</SelectItem>
+                  <SelectItem value="pt">🇧🇷 Português</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -241,7 +287,7 @@ export default function SettingsPage() {
             <Button variant="outline" className="w-full justify-start">
               Términos de Servicio
             </Button>
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start text-red-600">
               Eliminar Cuenta
             </Button>
           </CardContent>
