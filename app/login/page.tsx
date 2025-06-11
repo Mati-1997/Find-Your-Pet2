@@ -39,7 +39,7 @@ export default function LoginPage() {
       if (session) {
         console.log("Usuario ya autenticado, redirigiendo...")
         setRedirecting(true)
-        router.push("/dashboard")
+        router.push("/home")
       }
     }
 
@@ -70,10 +70,10 @@ export default function LoginPage() {
       setSuccess("Inicio de sesión exitoso")
       setRedirecting(true)
 
-      // Redirigir al dashboard
+      // Redirigir al home con todas las funcionalidades
       setTimeout(() => {
-        console.log("Redirigiendo a /dashboard...")
-        router.push("/dashboard")
+        console.log("Redirigiendo a /home...")
+        router.push("/home")
       }, 2000)
     } catch (error: any) {
       console.error("Error en login:", error)
@@ -88,7 +88,7 @@ export default function LoginPage() {
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Redirigiendo al dashboard...</p>
+          <p className="text-gray-600">Redirigiendo...</p>
         </div>
       </div>
     )
