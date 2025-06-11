@@ -39,58 +39,44 @@ export default function Dashboard() {
     else setGreeting("Buenas noches")
   }, [])
 
-  // Datos de ejemplo para las mascotas
-  const pets = [
-    {
-      id: "1",
-      name: "Max",
-      type: "Perro",
-      breed: "Golden Retriever",
-      status: "safe",
-      lastSeen: "Hace 2 horas",
-      image: "/placeholder.svg?height=60&width=60",
-      batteryLevel: 85,
-      isActive: true,
-    },
-    {
-      id: "2",
-      name: "Luna",
-      type: "Gato",
-      breed: "Siamés",
-      status: "safe",
-      lastSeen: "Hace 30 min",
-      image: "/placeholder.svg?height=60&width=60",
-      batteryLevel: 92,
-      isActive: true,
-    },
-  ]
-
-  // Datos de ejemplo para ubicaciones en el mapa
-  const petLocations = [
-    {
-      id: "1",
-      name: "Max",
-      latitude: -34.6037,
-      longitude: -58.3816,
-      timestamp: new Date().toISOString(),
-      status: "found" as const,
-    },
-    {
-      id: "2",
-      name: "Luna",
-      latitude: -34.6047,
-      longitude: -58.3826,
-      timestamp: new Date().toISOString(),
-      status: "lost" as const,
-    },
-  ]
-
-  const stats = {
-    totalPets: 2,
-    activePets: 2,
+  const [pets, setPets] = useState<any[]>([])
+  const [stats, setStats] = useState({
+    totalPets: 0,
+    activePets: 0,
     alertsToday: 3,
     communityHelps: 12,
-  }
+  })
+
+  useEffect(() => {
+    const fetchUserPets = async () => {
+      if (!user?.id) return
+
+      try {
+        const { petService } = await import("@/lib/supabase/pets")
+        const userPets = await petService.getUserPets(user.id)
+
+        setPets(userPets)
+        setStats((prev) => ({
+          ...prev,
+          totalPets: userPets.length,
+          activePets: userPets.filter((pet) => !pet.is_lost).length,
+        }))
+      } catch (error) {
+        console.error("Error fetching pets:", error)
+      }
+    }
+
+    fetchUserPets()
+  }, [user?.id])
+
+  const petLocations = pets.map((pet, index) => ({
+    id: pet.id,
+    name: pet.name,
+    latitude: -34.6037 + index * 0.001, // Temporary coordinates
+    longitude: -58.3816 + index * 0.001,
+    timestamp: pet.updated_at || new Date().toISOString(),
+    status: pet.is_lost ? ("lost" as const) : ("found" as const),
+  }))
 
   if (loading) {
     return (
@@ -261,12 +247,12 @@ export default function Dashboard() {
                     <div className="flex items-center space-x-4">
                       <div className="relative">
                         <Avatar className="h-16 w-16 ring-4 ring-white shadow-lg">
-                          <AvatarImage src={pet.image || "/placeholder.svg"} />
+                          <AvatarImage src={pet.image_url || "/placeholder.svg"} />
                           <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white font-bold">
                             {pet.name[0]}
                           </AvatarFallback>
                         </Avatar>
-                        {pet.isActive && (
+                        {!pet.is_lost && (
                           <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
                             <div className="h-2 w-2 bg-green-600 rounded-full animate-pulse"></div>
                           </div>
@@ -276,12 +262,12 @@ export default function Dashboard() {
                         <h3 className="font-bold text-lg text-gray-800">{pet.name}</h3>
                         <p className="text-gray-600">{pet.breed}</p>
                         <div className="flex items-center space-x-2 mt-1">
-                          <Badge variant={pet.status === "safe" ? "default" : "destructive"} className="text-xs">
-                            {pet.status === "safe" ? "Seguro" : "Perdido"}
+                          <Badge variant={!pet.is_lost ? "default" : "destructive"} className="text-xs">
+                            {!pet.is_lost ? "Seguro" : "Perdido"}
                           </Badge>
                           <span className="text-xs text-gray-500 flex items-center">
                             <Clock className="w-3 h-3 mr-1" />
-                            {pet.lastSeen}
+                            {pet.updated_at}
                           </span>
                         </div>
                       </div>
@@ -289,7 +275,7 @@ export default function Dashboard() {
                     <div className="text-right space-y-2">
                       <div className="flex items-center space-x-2">
                         <Zap className="w-4 h-4 text-yellow-500" />
-                        <span className="text-sm font-medium">{pet.batteryLevel}%</span>
+                        <span className="text-sm font-medium">{pet.battery_level}%</span>
                       </div>
                       <div className="flex space-x-2">
                         <Button size="sm" variant="outline" className="hover:bg-blue-50">

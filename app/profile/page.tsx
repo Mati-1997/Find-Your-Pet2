@@ -73,7 +73,7 @@ export default function Profile() {
       const { data: pets, error } = await supabase
         .from("pets")
         .select("*")
-        .eq("owner_id", userId)
+        .or(`owner_id.eq.${userId},user_id.eq.${userId}`)
         .order("created_at", { ascending: false })
 
       if (error) {
@@ -96,7 +96,7 @@ export default function Profile() {
       const { count: petsFoundCount, error: petsError } = await supabase
         .from("pets")
         .select("*", { count: "exact", head: true })
-        .eq("owner_id", userId)
+        .or(`owner_id.eq.${userId},user_id.eq.${userId}`)
         .eq("is_lost", false)
 
       // Contar reportes creados
