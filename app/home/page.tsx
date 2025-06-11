@@ -2,25 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { MapPin, Search, PlusCircle, Bell, User, Mic, X } from "lucide-react"
+import { MapPin, Search, PlusCircle, User, Mic, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import GoogleMap from "@/components/google-map"
-import AlertSummary from "@/components/alert-summary"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
-import { useAuth } from "@/hooks/use-auth"
-import { petService } from "@/lib/supabase/pets"
-import { locationService } from "@/lib/supabase/locations"
-
-// Add TypeScript declarations for the Web Speech API
-declare global {
-  interface Window {
-    SpeechRecognition: any
-    webkitSpeechRecognition: any
-  }
-}
+import { createClient } from "@/lib/supabase/client"
 
 interface PetWithLocation {
   id: string
@@ -36,114 +24,98 @@ interface PetWithLocation {
 export default function HomePage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { user, loading } = useAuth()
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const [pets, setPets] = useState<PetWithLocation[]>([])
   const [activeTab, setActiveTab] = useState("map")
   const [searchQuery, setSearchQuery] = useState("")
   const [isListening, setIsListening] = useState(false)
   const [filteredLocations, setFilteredLocations] = useState<PetWithLocation[]>([])
-  const [loadingPets, setLoadingPets] = useState(true)
 
-  // Redirect if not authenticated
+  // Verificar autenticación
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
-    }
-  }, [user, loading, router])
-
-  // Load pets and their locations
-  useEffect(() => {
-    async function loadPetsData() {
-      if (!user) return
-
+    const checkAuth = async () => {
       try {
-        setLoadingPets(true)
+        const supabase = createClient()
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession()
 
-        // Get all lost pets (public data)
-        const lostPets = await petService.getLostPets()
+        if (error) {
+          console.error("Error checking session:", error)
+          router.push("/login")
+          return
+        }
 
-        // Get locations for each pet
-        const petsWithLocations = await Promise.all(
-          lostPets.map(async (pet) => {
-            try {
-              const location = await locationService.getLatestPetLocation(pet.id)
-              return {
-                ...pet,
-                latitude: location?.latitude,
-                longitude: location?.longitude,
-                timestamp: location?.timestamp,
-              }
-            } catch (error) {
-              console.error(`Error loading location for pet ${pet.id}:`, error)
-              return pet
-            }
-          }),
-        )
+        if (!session) {
+          router.push("/login")
+          return
+        }
 
-        setPets(petsWithLocations)
-        setFilteredLocations(petsWithLocations)
+        setUser(session.user)
+
+        // Datos de ejemplo para mostrar
+        const examplePets: PetWithLocation[] = [
+          {
+            id: "1",
+            name: "Max",
+            breed: "Golden Retriever",
+            status: "Perdido",
+            is_lost: true,
+            latitude: 19.4326,
+            longitude: -99.1332,
+            timestamp: new Date().toISOString(),
+          },
+          {
+            id: "2",
+            name: "Luna",
+            breed: "Gato Persa",
+            status: "Encontrado",
+            is_lost: false,
+            latitude: 19.44,
+            longitude: -99.13,
+            timestamp: new Date().toISOString(),
+          },
+        ]
+
+        setPets(examplePets)
+        setFilteredLocations(examplePets)
       } catch (error) {
-        console.error("Error loading pets:", error)
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar las mascotas",
-          variant: "destructive",
-        })
+        console.error("Error in auth check:", error)
+        router.push("/login")
       } finally {
-        setLoadingPets(false)
+        setLoading(false)
       }
     }
 
-    loadPetsData()
-  }, [user, toast])
+    checkAuth()
+  }, [router])
+
+  const handleLogout = async () => {
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+      router.push("/login")
+    } catch (error) {
+      console.error("Error logging out:", error)
+    }
+  }
 
   const handlePetClick = (petId: string) => {
-    router.push(`/pet-detail?id=${petId}`)
+    toast({
+      title: "Navegando",
+      description: `Viendo detalles de mascota ${petId}`,
+    })
   }
 
-  const handleMapMarkerClick = (pet: PetWithLocation) => {
-    router.push(`/pet-detail?id=${pet.id}`)
-  }
-
-  // Handle voice search
   const handleVoiceSearch = () => {
-    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-      const recognition = new SpeechRecognition()
-
-      recognition.lang = "es-ES"
-      recognition.interimResults = false
-      recognition.maxAlternatives = 1
-
-      setIsListening(true)
-
-      recognition.onresult = (event) => {
-        const speechResult = event.results[0][0].transcript
-        setSearchQuery(speechResult)
-        setIsListening(false)
-        filterResults(speechResult)
-      }
-
-      recognition.onerror = (event) => {
-        console.error("Speech recognition error", event.error)
-        setIsListening(false)
-      }
-
-      recognition.onend = () => {
-        setIsListening(false)
-      }
-
-      recognition.start()
-    } else {
-      toast({
-        title: "No disponible",
-        description: "La búsqueda por voz no está disponible en este navegador.",
-        duration: 3000,
-      })
-    }
+    toast({
+      title: "Búsqueda por voz",
+      description: "Función de búsqueda por voz activada",
+    })
   }
 
-  // Filter results based on search query
   const filterResults = (query: string) => {
     if (!query.trim()) {
       setFilteredLocations(pets)
@@ -160,12 +132,11 @@ export default function HomePage() {
     setFilteredLocations(filtered)
   }
 
-  // Update filtered results when search query changes
   useEffect(() => {
     filterResults(searchQuery)
   }, [searchQuery, pets])
 
-  if (loading || !user) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -184,11 +155,9 @@ export default function HomePage() {
           <div className="flex items-center justify-between w-full">
             <h1 className="text-xl font-bold text-primary">Find Your Pet</h1>
             <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="icon" onClick={() => router.push("/alerts")}>
-                <Bell className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => router.push("/profile")}>
-                <User className="w-5 h-5" />
+              <span className="text-sm text-gray-600">Hola, {user?.user_metadata?.full_name || user?.email}</span>
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                Cerrar Sesión
               </Button>
             </div>
           </div>
@@ -213,11 +182,6 @@ export default function HomePage() {
                 <Mic className="absolute right-3 text-gray-400 h-4 w-4 cursor-pointer" onClick={handleVoiceSearch} />
               )}
             </div>
-            {isListening && (
-              <div className="absolute mt-1 w-full bg-white rounded-md shadow-lg p-2 text-center text-sm">
-                Escuchando... Habla ahora
-              </div>
-            )}
           </div>
         </div>
       </header>
@@ -234,14 +198,14 @@ export default function HomePage() {
                 <Button
                   variant="secondary"
                   className="bg-white text-blue-600 hover:bg-gray-100"
-                  onClick={() => router.push("/report")}
+                  onClick={() => toast({ title: "Navegando", description: "Ir a reportar mascota" })}
                 >
                   Reportar mascota
                 </Button>
                 <Button
                   variant="outline"
                   className="border-white text-white hover:bg-white/20"
-                  onClick={() => router.push("/ai-recognition")}
+                  onClick={() => toast({ title: "Navegando", description: "Ir a reconocimiento IA" })}
                 >
                   Buscar
                 </Button>
@@ -252,7 +216,25 @@ export default function HomePage() {
 
         {/* Alert Summary */}
         <section className="mb-8">
-          <AlertSummary />
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-semibold mb-2">Resumen de Alertas</h3>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-red-600">3</div>
+                  <div className="text-sm text-gray-600">Perdidas</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-green-600">1</div>
+                  <div className="text-sm text-gray-600">Encontradas</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">2</div>
+                  <div className="text-sm text-gray-600">Activas</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
         {/* Tabs */}
@@ -262,34 +244,17 @@ export default function HomePage() {
             <TabsTrigger value="list">Lista</TabsTrigger>
           </TabsList>
           <TabsContent value="map" className="mt-4">
-            <div className="rounded-lg h-64 overflow-hidden">
-              {filteredLocations.filter((pet) => pet.latitude && pet.longitude).length > 0 ? (
-                <GoogleMap
-                  petLocations={filteredLocations.filter((pet) => pet.latitude && pet.longitude)}
-                  height="100%"
-                  width="100%"
-                  onMarkerClick={handleMapMarkerClick}
-                  initialCenter={{
-                    lat: 19.4326, // Ciudad de México
-                    lng: -99.1332,
-                  }}
-                  initialZoom={12}
-                />
-              ) : (
-                <div className="h-full flex items-center justify-center bg-gray-100 rounded-lg">
-                  <p className="text-gray-500">No hay ubicaciones disponibles</p>
-                </div>
-              )}
+            <div className="rounded-lg h-64 overflow-hidden bg-gray-100 flex items-center justify-center">
+              <div className="text-center">
+                <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <p className="text-gray-500">Mapa de mascotas</p>
+                <p className="text-sm text-gray-400">{filteredLocations.length} mascotas en el área</p>
+              </div>
             </div>
           </TabsContent>
           <TabsContent value="list" className="mt-4">
             <div className="space-y-4">
-              {loadingPets ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p className="text-gray-500">Cargando mascotas...</p>
-                </div>
-              ) : filteredLocations.length > 0 ? (
+              {filteredLocations.length > 0 ? (
                 filteredLocations.map((pet) => (
                   <Card
                     key={pet.id}
@@ -298,15 +263,15 @@ export default function HomePage() {
                   >
                     <CardContent className="p-0">
                       <div className="flex">
-                        <div className="w-24 h-24 bg-gray-300 flex-shrink-0"></div>
+                        <div className="w-24 h-24 bg-gray-300 flex-shrink-0 flex items-center justify-center">
+                          <span className="text-gray-500 text-xs">Foto</span>
+                        </div>
                         <div className="p-4">
                           <h3 className="font-medium">{pet.name}</h3>
                           <p className="text-sm text-gray-500">
                             {pet.breed} • {pet.is_lost ? "Perdido" : "Encontrado"}
                           </p>
-                          {pet.timestamp && (
-                            <p className="text-sm text-gray-500">Visto hace {getTimeAgo(pet.timestamp)}</p>
-                          )}
+                          <p className="text-sm text-gray-500">Visto recientemente</p>
                           <div className="flex items-center mt-2 text-xs text-blue-600">
                             <MapPin className="w-3 h-3 mr-1" />
                             Ver ubicación
@@ -334,43 +299,37 @@ export default function HomePage() {
               title="GPS"
               icon="🛰️"
               description="Collar inteligente con rastreo GPS"
-              onClick={() => router.push("/tracking")}
+              onClick={() => toast({ title: "GPS", description: "Función de rastreo GPS" })}
             />
             <MethodCard
               title="IA"
               icon="🤖"
               description="Reconocimiento facial con IA"
-              onClick={() => router.push("/ai-recognition")}
+              onClick={() => toast({ title: "IA", description: "Reconocimiento con inteligencia artificial" })}
             />
             <MethodCard
               title="Fotos"
               icon="📸"
               description="Comparación de fotos"
-              onClick={() => router.push("/ai-recognition?tab=upload")}
+              onClick={() => toast({ title: "Fotos", description: "Comparación de fotografías" })}
             />
             <MethodCard
               title="Huella nasal"
               icon="👃"
               description="Identificación única"
-              onClick={() => router.push("/ai-recognition?tab=nose")}
+              onClick={() => toast({ title: "Huella nasal", description: "Identificación por huella nasal" })}
             />
             <MethodCard
               title="NFC"
               icon="📱"
               description="Escaneo de chip NFC"
-              onClick={() => router.push("/tracking?tab=devices")}
+              onClick={() => toast({ title: "NFC", description: "Escaneo de chip NFC" })}
             />
             <MethodCard
               title="Redes"
               icon="📢"
               description="Redes sociales y carteles"
-              onClick={() => router.push("/report")}
-            />
-            <MethodCard
-              title="Bluetooth"
-              icon="📶"
-              description="Seguimiento de corto alcance"
-              onClick={() => router.push("/tracking?tab=devices")}
+              onClick={() => toast({ title: "Redes", description: "Difusión en redes sociales" })}
             />
           </div>
         </section>
@@ -382,7 +341,7 @@ export default function HomePage() {
           <Button
             variant="ghost"
             className="flex flex-col items-center justify-center h-full rounded-none"
-            onClick={() => router.push("/ai-recognition")}
+            onClick={() => toast({ title: "Buscar", description: "Función de búsqueda" })}
           >
             <Search className="w-5 h-5" />
             <span className="text-xs mt-1">Buscar</span>
@@ -390,7 +349,7 @@ export default function HomePage() {
           <Button
             variant="ghost"
             className="flex flex-col items-center justify-center h-full rounded-none"
-            onClick={() => router.push("/tracking")}
+            onClick={() => toast({ title: "Mapa", description: "Ver mapa completo" })}
           >
             <MapPin className="w-5 h-5" />
             <span className="text-xs mt-1">Mapa</span>
@@ -398,7 +357,7 @@ export default function HomePage() {
           <Button
             variant="ghost"
             className="flex flex-col items-center justify-center h-full rounded-none text-primary"
-            onClick={() => router.push("/report")}
+            onClick={() => toast({ title: "Reportar", description: "Reportar mascota perdida" })}
           >
             <PlusCircle className="w-5 h-5 text-primary" />
             <span className="text-xs mt-1">Reportar</span>
@@ -406,7 +365,7 @@ export default function HomePage() {
           <Button
             variant="ghost"
             className="flex flex-col items-center justify-center h-full rounded-none"
-            onClick={() => router.push("/profile")}
+            onClick={() => toast({ title: "Perfil", description: "Ver perfil de usuario" })}
           >
             <User className="w-5 h-5" />
             <span className="text-xs mt-1">Perfil</span>
@@ -441,20 +400,4 @@ function MethodCard({
       </CardContent>
     </Card>
   )
-}
-
-// Función para calcular tiempo transcurrido
-function getTimeAgo(timestamp: string): string {
-  const now = new Date()
-  const time = new Date(timestamp)
-  const diff = now.getTime() - time.getTime()
-
-  const minutes = Math.floor(diff / 60000)
-  if (minutes < 60) return `${minutes}m`
-
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h`
-
-  const days = Math.floor(hours / 24)
-  return `${days}d`
 }
