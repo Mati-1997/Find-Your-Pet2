@@ -39,9 +39,51 @@ export default function DashboardPage() {
 
   // Verificar autenticación y cargar datos
   useEffect(() => {
+<<<<<<< HEAD
     if (!loading && user) {
       loadPetsFromDatabase()
       getUserLocation()
+=======
+    const checkAuth = async () => {
+      try {
+        const supabase = createClient()
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession()
+
+        if (error) {
+          console.error("Error checking session:", error)
+          toast({
+            title: "Error de autenticación",
+            description: "Por favor, inicia sesión nuevamente.",
+            variant: "destructive",
+          })
+          router.push("/login")
+          return
+        }
+
+        if (!session) {
+          console.log("No session found, redirecting to login")
+          router.push("/login")
+          return
+        }
+
+        console.log("User authenticated successfully:", session.user.id)
+        setUser(session.user)
+        await loadPetsFromDatabase()
+        await getUserLocation()
+      } catch (error) {
+        console.error("Error in auth check:", error)
+        toast({
+          title: "Error de conexión",
+          description: "Verifica tu conexión a internet.",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
+>>>>>>> fe0100055883c098177152f8554a28522e852ad3
     }
   }, [loading, user])
 

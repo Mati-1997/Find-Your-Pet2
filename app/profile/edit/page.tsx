@@ -26,20 +26,33 @@ export default function EditProfilePage() {
     bio: "",
   })
 
+  // Remove the existing useEffect for auth check and replace with:
   useEffect(() => {
     if (!loading && user) {
+<<<<<<< HEAD
       // Load existing user data
       setFormData({
         full_name: user.user_metadata?.full_name || "",
         phone: user.user_metadata?.phone || "",
         location: user.user_metadata?.location || "Buenos Aires, Argentina",
         bio: user.user_metadata?.bio || "",
+=======
+      setFormData({
+        full_name: user.user_metadata?.full_name || "",
+        phone: user.user_metadata?.phone || "",
+        bio: user.user_metadata?.bio || "",
+        location: user.user_metadata?.location || "Buenos Aires, Argentina",
+>>>>>>> fe0100055883c098177152f8554a28522e852ad3
       })
     }
   }, [loading, user])
 
+<<<<<<< HEAD
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+=======
+  const handleSave = async () => {
+>>>>>>> fe0100055883c098177152f8554a28522e852ad3
     setSaving(true)
 
     try {
