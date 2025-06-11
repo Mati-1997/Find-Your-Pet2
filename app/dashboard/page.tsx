@@ -63,6 +63,11 @@ export default function DashboardPage() {
         await getUserLocation()
       } catch (error) {
         console.error("Error in auth check:", error)
+        toast({
+          title: "Error de autenticación",
+          description: "Por favor, inicia sesión nuevamente.",
+          variant: "destructive",
+        })
         router.push("/login")
       } finally {
         setLoading(false)
@@ -130,6 +135,11 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error("Error loading pets:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las mascotas. Verifica tu conexión.",
+        variant: "destructive",
+      })
       setPets([])
       setFilteredLocations([])
     }
