@@ -2,35 +2,113 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import { ArrowLeft, Search, Camera, Upload, Filter, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Search, ArrowLeft, Camera, Upload } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/components/ui/use-toast"
+import { createClient } from "@/lib/supabase/client"
 
 export default function SearchPage() {
+  const router = useRouter()
+  const { toast } = useToast()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const router = useRouter()
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [filters, setFilters] = useState({
+    type: "all",
+    status: "all",
+    distance: "all",
+  })
 
   useEffect(() => {
-    const getUser = async () => {
-      const supabase = createClient()
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+    const checkAuth = async () => {
+      try {
+        const supabase = createClient()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
 
-      if (session) {
+        if (!session) {
+          router.push("/login")
+          return
+        }
+
         setUser(session.user)
-      } else {
+        loadSearchResults()
+      } catch (error) {
+        console.error("Error checking auth:", error)
         router.push("/login")
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
-    getUser()
+    checkAuth()
   }, [router])
+
+  const loadSearchResults = async () => {
+    // Simular resultados de búsqueda
+    const mockResults = [
+      {
+        id: "1",
+        name: "Max",
+        breed: "Golden Retriever",
+        status: "Perdido",
+        location: "Palermo, Buenos Aires",
+        distance: "2.3 km",
+        time: "hace 3 horas",
+        image: "/placeholder.svg?height=100&width=100",
+      },
+      {
+        id: "2",
+        name: "Luna",
+        breed: "Gato Persa",
+        status: "Encontrado",
+        location: "Recoleta, Buenos Aires",
+        distance: "1.8 km",
+        time: "hace 1 día",
+        image: "/placeholder.svg?height=100&width=100",
+      },
+      {
+        id: "3",
+        name: "Rocky",
+        breed: "Bulldog Francés",
+        status: "Perdido",
+        location: "San Telmo, Buenos Aires",
+        distance: "4.1 km",
+        time: "hace 2 días",
+        image: "/placeholder.svg?height=100&width=100",
+      },
+    ]
+
+    setSearchResults(mockResults)
+  }
+
+  const handleSearch = () => {
+    toast({
+      title: "Buscando",
+      description: `Buscando "${searchQuery}" en la base de datos...`,
+    })
+    // Aquí iría la lógica real de búsqueda
+  }
+
+  const handleImageSearch = () => {
+    toast({
+      title: "Búsqueda por imagen",
+      description: "Función de reconocimiento de imágenes activada",
+    })
+    router.push("/ai-recognition")
+  }
+
+  const handleCameraSearch = () => {
+    toast({
+      title: "Búsqueda con cámara",
+      description: "Abriendo cámara para búsqueda...",
+    })
+  }
 
   if (loading) {
     return (
@@ -43,77 +121,132 @@ export default function SearchPage() {
     )
   }
 
-  if (!user) {
-    return null
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <h1 className="text-xl font-bold">Buscar Mascotas</h1>
-          </div>
+      <header className="sticky top-0 z-10 bg-white border-b">
+        <div className="container flex items-center h-16 px-4">
+          <Button variant="ghost" className="mr-4 p-0" onClick={() => router.push("/dashboard")}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="text-lg font-semibold">Buscar Mascotas</h1>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container px-4 py-6 space-y-6">
         {/* Search Bar */}
-        <section className="mb-8">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              type="text"
-              placeholder="Buscar por nombre, raza, color..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 py-3"
-            />
-          </div>
-        </section>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex space-x-2">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  type="text"
+                  placeholder="Buscar por nombre, raza, color..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                  onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                />
+              </div>
+              <Button onClick={handleSearch}>
+                <Search className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Search Methods */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-4">Métodos de búsqueda</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="cursor-pointer hover:border-primary transition-colors">
-              <CardContent className="p-6 text-center">
-                <Camera className="w-12 h-12 mx-auto mb-4 text-primary" />
-                <h3 className="font-medium mb-2">Tomar Foto</h3>
-                <p className="text-sm text-gray-500">Usa la cámara para buscar mascotas similares</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:border-primary transition-colors">
-              <CardContent className="p-6 text-center">
-                <Upload className="w-12 h-12 mx-auto mb-4 text-primary" />
-                <h3 className="font-medium mb-2">Subir Imagen</h3>
-                <p className="text-sm text-gray-500">Sube una foto desde tu galería</p>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Métodos de búsqueda</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <Button variant="outline" className="h-20 flex-col" onClick={handleCameraSearch}>
+                <Camera className="w-6 h-6 mb-2" />
+                <span className="text-sm">Tomar Foto</span>
+              </Button>
+              <Button variant="outline" className="h-20 flex-col" onClick={handleImageSearch}>
+                <Upload className="w-6 h-6 mb-2" />
+                <span className="text-sm">Subir Imagen</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Filters */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Filter className="w-5 h-5 mr-2" />
+              Filtros
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="cursor-pointer">
+                Todos los tipos
+              </Badge>
+              <Badge variant="outline" className="cursor-pointer">
+                Perros
+              </Badge>
+              <Badge variant="outline" className="cursor-pointer">
+                Gatos
+              </Badge>
+              <Badge variant="outline" className="cursor-pointer">
+                Perdidos
+              </Badge>
+              <Badge variant="outline" className="cursor-pointer">
+                Encontrados
+              </Badge>
+              <Badge variant="outline" className="cursor-pointer">
+                Cerca de mí
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Results */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4">Resultados</h2>
-          <Card>
-            <CardHeader>
-              <CardTitle>Mascotas encontradas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-gray-500">
-                <Search className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                <p>No hay resultados</p>
-                <p className="text-sm mt-2">Intenta buscar con diferentes términos</p>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Resultados ({searchResults.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {searchResults.map((pet) => (
+                <Card
+                  key={pet.id}
+                  className="cursor-pointer hover:border-primary transition-colors"
+                  onClick={() => router.push(`/pet-detail?id=${pet.id}`)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex space-x-4">
+                      <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-gray-500 text-sm">🐕</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-semibold">{pet.name}</h3>
+                            <p className="text-sm text-gray-600">{pet.breed}</p>
+                            <div className="flex items-center mt-1 text-xs text-gray-500">
+                              <MapPin className="w-3 h-3 mr-1" />
+                              {pet.location} • {pet.distance}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">{pet.time}</p>
+                          </div>
+                          <Badge variant={pet.status === "Perdido" ? "destructive" : "default"}>{pet.status}</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   )
