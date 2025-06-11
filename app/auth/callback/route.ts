@@ -47,19 +47,15 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      if (data.user && data.session) {
+      if (data.user) {
         console.log("User verified successfully:", {
           userId: data.user.id,
           email: data.user.email,
           emailConfirmed: !!data.user.email_confirmed_at,
         })
 
-        // Redirigir directamente al home si el usuario está verificado
-        if (data.user.email_confirmed_at) {
-          return NextResponse.redirect(`${origin}/home`)
-        } else {
-          return NextResponse.redirect(`${origin}/login?message=email_verified`)
-        }
+        // Redirigir al login con mensaje de éxito
+        return NextResponse.redirect(`${origin}/login?message=email_verified`)
       }
     } catch (error: any) {
       console.error("Callback error:", error)
