@@ -2,493 +2,411 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { MapPin, Search, PlusCircle, User, Mic, X, Settings } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { useToast } from "@/components/ui/use-toast"
-import { createClient } from "@/lib/supabase/client"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  Heart,
+  MapPin,
+  Bell,
+  Search,
+  PlusCircle,
+  Settings,
+  User,
+  Zap,
+  Shield,
+  Camera,
+  Navigation,
+  Activity,
+  TrendingUp,
+  Clock,
+  Award,
+} from "lucide-react"
 import { useAuthCheck } from "@/hooks/use-auth-check"
-import MapView from "@/components/map-view"
 import AlertSummary from "@/components/alert-summary"
+import MapView from "@/components/map-view"
 
-interface PetWithLocation {
-  id: string
-  name: string
-  breed: string
-  status: string
-  is_lost: boolean
-  latitude?: number
-  longitude?: number
-  timestamp?: string
-  image_url?: string
-  description?: string
-  owner_id?: string
-}
-
-export default function DashboardPage() {
+export default function Dashboard() {
   const router = useRouter()
-  const { toast } = useToast()
-  const { user, loading, isAuthenticated } = useAuthCheck()
-  const [pets, setPets] = useState<PetWithLocation[]>([])
-  const [activeTab, setActiveTab] = useState("map")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filteredLocations, setFilteredLocations] = useState<PetWithLocation[]>([])
-  const [userLocation, setUserLocation] = useState({ lat: -34.6037, lng: -58.3816 }) // Buenos Aires
-
-  // Verificar autenticación y cargar datos
-  useEffect(() => {
-    if (!loading) {
-      if (!isAuthenticated) {
-        console.log("No authenticated user, redirecting to login")
-        toast({
-          title: "Inicia sesión",
-          description: "Necesitas iniciar sesión para acceder al dashboard",
-          variant: "destructive",
-        })
-        router.push("/login")
-      } else {
-        console.log("User authenticated, loading data")
-        loadPetsFromDatabase()
-        getUserLocation()
-      }
-    }
-  }, [loading, isAuthenticated, router])
-
-  const getUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
-        },
-        (error) => {
-          console.log("Error getting location, using Buenos Aires default:", error)
-          // Mantener Buenos Aires como default
-        },
-      )
-    }
-  }
-
-  const loadPetsFromDatabase = async () => {
-    try {
-      const supabase = createClient()
-      const { data: petsData, error } = await supabase
-        .from("pets")
-        .select("*")
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        console.error("Error loading pets:", error)
-        // En lugar de mostrar array vacío, mostrar datos de ejemplo para testing
-        const examplePets: PetWithLocation[] = [
-          {
-            id: "example-1",
-            name: "Max",
-            breed: "Golden Retriever",
-            status: "Perdido",
-            is_lost: true,
-            latitude: userLocation.lat + 0.005,
-            longitude: userLocation.lng + 0.005,
-            timestamp: new Date().toISOString(),
-            description: "Perro dorado, muy amigable, collar azul",
-          },
-          {
-            id: "example-2",
-            name: "Luna",
-            breed: "Mestizo",
-            status: "Encontrado",
-            is_lost: false,
-            latitude: userLocation.lat - 0.003,
-            longitude: userLocation.lng + 0.002,
-            timestamp: new Date(Date.now() - 86400000).toISOString(),
-            description: "Gata blanca con manchas negras",
-          },
-        ]
-        setPets(examplePets)
-        setFilteredLocations(examplePets)
-
-        toast({
-          title: "Usando datos de ejemplo",
-          description: "No se pudo conectar a la base de datos. Mostrando datos de prueba.",
-        })
-        return
-      }
-
-      if (petsData && petsData.length > 0) {
-        const formattedPets: PetWithLocation[] = petsData.map((pet) => ({
-          id: pet.id,
-          name: pet.name,
-          breed: pet.breed || "Raza desconocida",
-          status: pet.is_lost ? "Perdido" : "Encontrado",
-          is_lost: pet.is_lost,
-          latitude: pet.last_known_latitude || userLocation.lat + (Math.random() - 0.5) * 0.01,
-          longitude: pet.last_known_longitude || userLocation.lng + (Math.random() - 0.5) * 0.01,
-          timestamp: pet.created_at,
-          image_url: pet.image_url,
-          description: pet.description,
-          owner_id: pet.owner_id,
-        }))
-
-        setPets(formattedPets)
-        setFilteredLocations(formattedPets)
-      } else {
-        // Si no hay datos reales, mostrar datos de ejemplo
-        const examplePets: PetWithLocation[] = [
-          {
-            id: "example-1",
-            name: "Max",
-            breed: "Golden Retriever",
-            status: "Perdido",
-            is_lost: true,
-            latitude: userLocation.lat + 0.005,
-            longitude: userLocation.lng + 0.005,
-            timestamp: new Date().toISOString(),
-            description: "Perro dorado, muy amigable, collar azul",
-          },
-        ]
-        setPets(examplePets)
-        setFilteredLocations(examplePets)
-      }
-    } catch (error) {
-      console.error("Error loading pets:", error)
-      toast({
-        title: "Error de conexión",
-        description: "No se pudieron cargar las mascotas. Verifica tu conexión.",
-        variant: "destructive",
-      })
-      setPets([])
-      setFilteredLocations([])
-    }
-  }
-
-  const handleLogout = async () => {
-    try {
-      const supabase = createClient()
-      await supabase.auth.signOut()
-      router.push("/login")
-    } catch (error) {
-      console.error("Error logging out:", error)
-    }
-  }
-
-  const handlePetClick = (pet: PetWithLocation) => {
-    router.push(`/pet-detail?id=${pet.id}`)
-  }
-
-  const handleVoiceSearch = () => {
-    toast({
-      title: "Búsqueda por voz",
-      description: "Función de búsqueda por voz activada",
-    })
-  }
-
-  const filterResults = (query: string) => {
-    if (!query.trim()) {
-      setFilteredLocations(pets)
-      return
-    }
-
-    const filtered = pets.filter(
-      (pet) =>
-        pet.name.toLowerCase().includes(query.toLowerCase()) ||
-        pet.breed?.toLowerCase().includes(query.toLowerCase()) ||
-        pet.description?.toLowerCase().includes(query.toLowerCase()),
-    )
-
-    setFilteredLocations(filtered)
-  }
+  const { user, loading } = useAuthCheck()
+  const [greeting, setGreeting] = useState("")
 
   useEffect(() => {
-    filterResults(searchQuery)
-  }, [searchQuery, pets])
+    const hour = new Date().getHours()
+    if (hour < 12) setGreeting("Buenos días")
+    else if (hour < 18) setGreeting("Buenas tardes")
+    else setGreeting("Buenas noches")
+  }, [])
+
+  // Datos de ejemplo para las mascotas
+  const pets = [
+    {
+      id: "1",
+      name: "Max",
+      type: "Perro",
+      breed: "Golden Retriever",
+      status: "safe",
+      lastSeen: "Hace 2 horas",
+      image: "/placeholder.svg?height=60&width=60",
+      batteryLevel: 85,
+      isActive: true,
+    },
+    {
+      id: "2",
+      name: "Luna",
+      type: "Gato",
+      breed: "Siamés",
+      status: "safe",
+      lastSeen: "Hace 30 min",
+      image: "/placeholder.svg?height=60&width=60",
+      batteryLevel: 92,
+      isActive: true,
+    },
+  ]
+
+  // Datos de ejemplo para ubicaciones en el mapa
+  const petLocations = [
+    {
+      id: "1",
+      name: "Max",
+      latitude: -34.6037,
+      longitude: -58.3816,
+      timestamp: new Date().toISOString(),
+      status: "found" as const,
+    },
+    {
+      id: "2",
+      name: "Luna",
+      latitude: -34.6047,
+      longitude: -58.3826,
+      timestamp: new Date().toISOString(),
+      status: "lost" as const,
+    },
+  ]
+
+  const stats = {
+    totalPets: 2,
+    activePets: 2,
+    alertsToday: 3,
+    communityHelps: 12,
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Verificando autenticación...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">Redirigiendo al login...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
+          <p className="text-gray-600 font-medium">Cargando tu dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-white border-b">
-        <div className="container flex flex-col items-center h-auto px-4 py-2">
-          <div className="flex items-center justify-between w-full">
-            <h1 className="text-xl font-bold text-primary">Find Your Pet</h1>
-            <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="sm" onClick={() => router.push("/settings")}>
-                <Settings className="w-4 h-4 mr-1" />
-                Configuración
-              </Button>
-              <span className="text-sm text-gray-600">Hola, {user?.user_metadata?.full_name || user?.email}</span>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                Cerrar Sesión
-              </Button>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      {/* Header con gradiente */}
+      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <Avatar className="h-12 w-12 ring-4 ring-white/20">
+                  <AvatarImage src="/placeholder.svg?height=48&width=48" />
+                  <AvatarFallback className="bg-white/20 text-white font-bold">
+                    {user?.email?.[0]?.toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-green-400 rounded-full border-2 border-white"></div>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">{greeting}</h1>
+                <p className="text-blue-100">{user?.email || "Usuario"}</p>
+              </div>
             </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="relative w-full max-w-md mt-2">
-            <div className="relative flex items-center">
-              <Search className="absolute left-3 text-gray-400 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Buscar mascota..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-9 py-2 w-full rounded-full border-2 border-gray-800"
-              />
-              {searchQuery ? (
-                <X
-                  className="absolute right-3 text-gray-400 h-4 w-4 cursor-pointer"
-                  onClick={() => setSearchQuery("")}
-                />
-              ) : (
-                <Mic className="absolute right-3 text-gray-400 h-4 w-4 cursor-pointer" onClick={handleVoiceSearch} />
-              )}
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/20 relative"
+                onClick={() => router.push("/alerts")}
+              >
+                <Bell className="h-5 w-5" />
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 bg-red-500 text-white text-xs">3</Badge>
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/20"
+                onClick={() => router.push("/settings")}
+              >
+                <Settings className="h-5 w-5" />
+              </Button>
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <main className="flex-1 container px-4 py-6 pb-20">
-        {/* Hero Section */}
-        <section className="mb-8">
-          <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-            <CardContent className="p-6">
-              <h2 className="text-2xl font-bold mb-2">Encuentra a tu mascota</h2>
-              <p className="mb-4">Múltiples tecnologías para localizar mascotas extraviadas</p>
-              <div className="flex space-x-2">
-                <Button
-                  variant="secondary"
-                  className="bg-white text-blue-600 hover:bg-gray-100"
-                  onClick={() => router.push("/report")}
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm">Mis Mascotas</p>
+                  <p className="text-2xl font-bold">{stats.totalPets}</p>
+                </div>
+                <Heart className="h-8 w-8 text-blue-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm">Activas</p>
+                  <p className="text-2xl font-bold">{stats.activePets}</p>
+                </div>
+                <Activity className="h-8 w-8 text-green-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-500 to-red-500 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-100 text-sm">Alertas Hoy</p>
+                  <p className="text-2xl font-bold">{stats.alertsToday}</p>
+                </div>
+                <Bell className="h-8 w-8 text-orange-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm">Ayudas</p>
+                  <p className="text-2xl font-bold">{stats.communityHelps}</p>
+                </div>
+                <Award className="h-8 w-8 text-purple-200" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Botones de acción principales */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Button
+            onClick={() => router.push("/report")}
+            className="h-20 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+          >
+            <div className="text-center">
+              <PlusCircle className="h-6 w-6 mx-auto mb-1" />
+              <span className="text-sm font-medium">Reportar</span>
+            </div>
+          </Button>
+
+          <Button
+            onClick={() => router.push("/search")}
+            className="h-20 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+          >
+            <div className="text-center">
+              <Search className="h-6 w-6 mx-auto mb-1" />
+              <span className="text-sm font-medium">Buscar</span>
+            </div>
+          </Button>
+
+          <Button
+            onClick={() => router.push("/tracking")}
+            className="h-20 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+          >
+            <div className="text-center">
+              <Navigation className="h-6 w-6 mx-auto mb-1" />
+              <span className="text-sm font-medium">GPS</span>
+            </div>
+          </Button>
+
+          <Button
+            onClick={() => router.push("/profile")}
+            className="h-20 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+          >
+            <div className="text-center">
+              <User className="h-6 w-6 mx-auto mb-1" />
+              <span className="text-sm font-medium">Perfil</span>
+            </div>
+          </Button>
+        </div>
+
+        {/* Mis Mascotas */}
+        <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-lg">
+            <CardTitle className="flex items-center text-xl">
+              <Heart className="w-6 h-6 mr-2" />
+              Mis Mascotas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid gap-4">
+              {pets.map((pet) => (
+                <div
+                  key={pet.id}
+                  className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
                 >
-                  Reportar mascota
-                </Button>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="relative">
+                        <Avatar className="h-16 w-16 ring-4 ring-white shadow-lg">
+                          <AvatarImage src={pet.image || "/placeholder.svg"} />
+                          <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white font-bold">
+                            {pet.name[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        {pet.isActive && (
+                          <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
+                            <div className="h-2 w-2 bg-green-600 rounded-full animate-pulse"></div>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg text-gray-800">{pet.name}</h3>
+                        <p className="text-gray-600">{pet.breed}</p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge variant={pet.status === "safe" ? "default" : "destructive"} className="text-xs">
+                            {pet.status === "safe" ? "Seguro" : "Perdido"}
+                          </Badge>
+                          <span className="text-xs text-gray-500 flex items-center">
+                            <Clock className="w-3 h-3 mr-1" />
+                            {pet.lastSeen}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Zap className="w-4 h-4 text-yellow-500" />
+                        <span className="text-sm font-medium">{pet.batteryLevel}%</span>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button size="sm" variant="outline" className="hover:bg-blue-50">
+                          <MapPin className="w-4 h-4" />
+                        </Button>
+                        <Button size="sm" variant="outline" className="hover:bg-green-50">
+                          <Camera className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Grid de contenido principal */}
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Mapa */}
+          <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+            <CardHeader className="bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-t-lg">
+              <CardTitle className="flex items-center text-xl">
+                <MapPin className="w-6 h-6 mr-2" />
+                Ubicaciones en Tiempo Real
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <MapView
+                petLocations={petLocations}
+                height="300px"
+                onMarkerClick={(pet) => {
+                  console.log("Clicked pet:", pet)
+                }}
+              />
+              <div className="p-4">
                 <Button
-                  variant="outline"
-                  className="border-white text-white hover:bg-white/20"
-                  onClick={() => router.push("/search")}
+                  onClick={() => router.push("/map")}
+                  className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
                 >
-                  Buscar
+                  Ver Mapa Completo
                 </Button>
               </div>
             </CardContent>
           </Card>
-        </section>
 
-        {/* Alert Summary */}
-        <section className="mb-8">
-          <AlertSummary />
-        </section>
+          {/* Alertas */}
+          <div className="space-y-6">
+            <AlertSummary />
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="map">Mapa</TabsTrigger>
-            <TabsTrigger value="list">Lista</TabsTrigger>
-          </TabsList>
-          <TabsContent value="map" className="mt-4">
-            {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
-              <MapView
-                petLocations={filteredLocations.map((pet) => ({
-                  id: pet.id,
-                  name: pet.name,
-                  latitude: pet.latitude || userLocation.lat,
-                  longitude: pet.longitude || userLocation.lng,
-                  timestamp: pet.timestamp || new Date().toISOString(),
-                  status: pet.is_lost ? "lost" : "found",
-                  imageUrl: pet.image_url,
-                }))}
-                height="400px"
-                onMarkerClick={handlePetClick}
-                initialViewState={{
-                  latitude: userLocation.lat,
-                  longitude: userLocation.lng,
-                  zoom: 13,
-                }}
-              />
-            ) : (
-              <Card className="h-96 flex items-center justify-center">
-                <CardContent className="text-center">
-                  <MapPin className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                  <h3 className="font-medium mb-2">Mapa no disponible</h3>
-                  <p className="text-sm text-gray-500">
-                    Configure la API key de Google Maps en las variables de entorno
-                  </p>
-                  <p className="text-xs text-gray-400 mt-2">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-          <TabsContent value="list" className="mt-4">
-            <div className="space-y-4">
-              {filteredLocations.length > 0 ? (
-                filteredLocations.map((pet) => (
-                  <Card
-                    key={pet.id}
-                    className="overflow-hidden cursor-pointer hover:border-primary transition-colors"
-                    onClick={() => handlePetClick(pet)}
-                  >
-                    <CardContent className="p-0">
-                      <div className="flex">
-                        <div className="w-24 h-24 bg-gray-300 flex-shrink-0 flex items-center justify-center">
-                          {pet.image_url ? (
-                            <img
-                              src={pet.image_url || "/placeholder.svg"}
-                              alt={pet.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none"
-                                e.currentTarget.nextElementSibling!.style.display = "flex"
-                              }}
-                            />
-                          ) : null}
-                          <span className="text-gray-500 text-xs">🐕</span>
-                        </div>
-                        <div className="p-4">
-                          <h3 className="font-medium">{pet.name}</h3>
-                          <p className="text-sm text-gray-500">
-                            {pet.breed} • {pet.status}
-                          </p>
-                          <p className="text-sm text-gray-500">{pet.description}</p>
-                          <div className="flex items-center mt-2 text-xs text-blue-600">
-                            <MapPin className="w-3 h-3 mr-1" />
-                            Ver ubicación
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Search className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                  <p>No hay mascotas reportadas</p>
-                  <p className="text-sm mt-2">Sé el primero en reportar una mascota perdida</p>
-                </div>
-              )}
+            {/* Acciones rápidas adicionales */}
+            <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-t-lg">
+                <CardTitle className="flex items-center text-xl">
+                  <Zap className="w-6 h-6 mr-2" />
+                  Acciones Rápidas
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                <Button
+                  onClick={() => router.push("/nose-print")}
+                  className="w-full justify-start bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white h-12"
+                >
+                  <Shield className="w-5 h-5 mr-3" />
+                  Huella Nasal
+                </Button>
+
+                <Button
+                  onClick={() => router.push("/ai-recognition")}
+                  className="w-full justify-start bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white h-12"
+                >
+                  <Camera className="w-5 h-5 mr-3" />
+                  Reconocimiento IA
+                </Button>
+
+                <Button
+                  onClick={() => router.push("/alerts")}
+                  className="w-full justify-start bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white h-12"
+                >
+                  <Bell className="w-5 h-5 mr-3" />
+                  Centro de Alertas
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Estadísticas de actividad */}
+        <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-t-lg">
+            <CardTitle className="flex items-center text-xl">
+              <TrendingUp className="w-6 h-6 mr-2" />
+              Actividad de la Comunidad
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-blue-600 mb-2">24</div>
+                <div className="text-sm text-gray-600">Mascotas encontradas hoy</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-green-600 mb-2">156</div>
+                <div className="text-sm text-gray-600">Usuarios activos</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-purple-600 mb-2">89</div>
+                <div className="text-sm text-gray-600">Reportes esta semana</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-orange-600 mb-2">342</div>
+                <div className="text-sm text-gray-600">Ayudas brindadas</div>
+              </div>
             </div>
-          </TabsContent>
-        </Tabs>
-
-        {/* Métodos de localización */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4">Métodos de localización</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <MethodCard
-              title="GPS"
-              icon="🛰️"
-              description="Collar inteligente con rastreo GPS"
-              onClick={() => router.push("/tracking")}
-            />
-            <MethodCard
-              title="Fotos"
-              icon="📸"
-              description="Comparación de fotos"
-              onClick={() => router.push("/search")}
-            />
-            <MethodCard
-              title="Huella nasal"
-              icon="👃"
-              description="Identificación única"
-              onClick={() => router.push("/nose-print")}
-            />
-            <MethodCard
-              title="Redes"
-              icon="📢"
-              description="Redes sociales y carteles"
-              onClick={() => toast({ title: "Redes", description: "Función en desarrollo - Próximamente disponible" })}
-            />
-          </div>
-        </section>
-      </main>
-
-      {/* Bottom Navigation */}
-      <nav className="sticky bottom-0 bg-white border-t">
-        <div className="grid grid-cols-4 h-16">
-          <Button
-            variant="ghost"
-            className="flex flex-col items-center justify-center h-full rounded-none"
-            onClick={() => router.push("/search")}
-          >
-            <Search className="w-5 h-5" />
-            <span className="text-xs mt-1">Buscar</span>
-          </Button>
-          <Button
-            variant="ghost"
-            className="flex flex-col items-center justify-center h-full rounded-none"
-            onClick={() => router.push("/map")}
-          >
-            <MapPin className="w-5 h-5" />
-            <span className="text-xs mt-1">Mapa</span>
-          </Button>
-          <Button
-            variant="ghost"
-            className="flex flex-col items-center justify-center h-full rounded-none text-primary"
-            onClick={() => router.push("/report")}
-          >
-            <PlusCircle className="w-5 h-5 text-primary" />
-            <span className="text-xs mt-1">Reportar</span>
-          </Button>
-          <Button
-            variant="ghost"
-            className="flex flex-col items-center justify-center h-full rounded-none"
-            onClick={() => router.push("/profile")}
-          >
-            <User className="w-5 h-5" />
-            <span className="text-xs mt-1">Perfil</span>
-          </Button>
-        </div>
-      </nav>
+          </CardContent>
+        </Card>
+      </div>
     </div>
-  )
-}
-
-function MethodCard({
-  title,
-  icon,
-  description,
-  onClick,
-}: {
-  title: string
-  icon: string
-  description: string
-  onClick: () => void
-}) {
-  return (
-    <Card className="overflow-hidden cursor-pointer hover:border-primary transition-colors" onClick={onClick}>
-      <CardContent className="p-4">
-        <div className="flex items-center">
-          <div className="text-2xl mr-3">{icon}</div>
-          <div>
-            <h3 className="font-medium text-sm">{title}</h3>
-            <p className="text-xs text-gray-500">{description}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   )
 }

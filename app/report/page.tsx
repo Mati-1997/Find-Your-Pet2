@@ -2,379 +2,506 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Camera, Upload, MapPin, Save } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { useToast } from "@/components/ui/use-toast"
-import { createClient } from "@/lib/supabase/client"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { Camera, MapPin, Heart, AlertTriangle, Upload, X, CheckCircle, User, PawPrint } from "lucide-react"
 import { useAuthCheck } from "@/hooks/use-auth-check"
 
-export default function ReportPage() {
+export default function Report() {
   const router = useRouter()
-  const { toast } = useToast()
-  const { user, loading, isAuthenticated } = useAuthCheck()
-  const [submitting, setSubmitting] = useState(false)
-  const [userLocation, setUserLocation] = useState({ lat: -34.6037, lng: -58.3816 })
+  const { user, loading } = useAuthCheck()
+  const [reportType, setReportType] = useState<"lost" | "found" | "">("")
   const [formData, setFormData] = useState({
-    name: "",
+    petName: "",
+    petType: "",
     breed: "",
-    description: "",
-    reportType: "lost",
-    species: "dog",
     color: "",
     size: "",
+    age: "",
+    description: "",
     lastSeenLocation: "",
+    lastSeenDate: "",
+    contactName: "",
     contactPhone: "",
+    contactEmail: "",
     reward: "",
   })
+  const [images, setImages] = useState<File[]>([])
+  const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState(false)
 
-  useEffect(() => {
-    if (!loading) {
-      if (!isAuthenticated) {
-        toast({
-          title: "Inicia sesión",
-          description: "Necesitas iniciar sesión para reportar una mascota",
-          variant: "destructive",
-        })
-        router.push("/login")
-      } else {
-        getUserLocation()
-      }
-    }
-  }, [loading, isAuthenticated, router])
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
 
-  const getUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
-        },
-        (error) => {
-          console.log("Error getting location:", error)
-        },
-      )
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newImages = Array.from(e.target.files)
+      setImages((prev) => [...prev, ...newImages].slice(0, 5)) // Máximo 5 imágenes
     }
+  }
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
 
-    try {
-      const supabase = createClient()
+    // Simular envío
+    await new Promise((resolve) => setTimeout(resolve, 2000))
 
-      const petData = {
-        name: formData.name,
-        breed: formData.breed,
-        description: formData.description,
-        species: formData.species,
-        color: formData.color,
-        size: formData.size,
-        is_lost: formData.reportType === "lost",
-        last_known_latitude: userLocation.lat,
-        last_known_longitude: userLocation.lng,
-        last_seen_location: formData.lastSeenLocation,
-        contact_phone: formData.contactPhone,
-        reward: formData.reward,
-        owner_id: user.id,
-        status: "active",
-        created_at: new Date().toISOString(),
-      }
+    setSuccess(true)
+    setSubmitting(false)
 
-      const { data, error } = await supabase.from("pets").insert([petData]).select()
-
-      if (error) {
-        throw error
-      }
-
-      toast({
-        title: "Reporte creado",
-        description: `${formData.name} ha sido reportado como ${formData.reportType === "lost" ? "perdido" : "encontrado"}`,
-      })
-
+    // Redirigir después de 3 segundos
+    setTimeout(() => {
       router.push("/dashboard")
-    } catch (error: any) {
-      console.error("Error creating report:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo crear el reporte. Intenta nuevamente.",
-        variant: "destructive",
-      })
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleImageUpload = () => {
-    toast({
-      title: "Función en desarrollo",
-      description: "La subida de imágenes estará disponible pronto",
-    })
-  }
-
-  const handleTakePhoto = () => {
-    toast({
-      title: "Función en desarrollo",
-      description: "La función de cámara estará disponible pronto",
-    })
+    }, 3000)
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Verificando autenticación...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
+          <p className="text-gray-600 font-medium">Cargando formulario...</p>
         </div>
       </div>
     )
   }
 
-  if (!isAuthenticated) {
+  if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">Redirigiendo al login...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
+          <CardContent className="p-8 text-center">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-full p-4 w-20 h-20 mx-auto mb-6">
+              <CheckCircle className="w-12 h-12 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">¡Reporte Enviado!</h2>
+            <p className="text-gray-600 mb-6">
+              Tu reporte ha sido publicado exitosamente. La comunidad ya está ayudando a buscar.
+            </p>
+            <div className="space-y-3">
+              <Button
+                onClick={() => router.push("/dashboard")}
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+              >
+                Volver al Dashboard
+              </Button>
+              <Button variant="outline" onClick={() => router.push("/search")} className="w-full">
+                Ver Reportes Activos
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white border-b">
-        <div className="container flex items-center h-16 px-4">
-          <Button variant="ghost" className="mr-4 p-0" onClick={() => router.push("/dashboard")}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h1 className="text-lg font-semibold">Reportar Mascota</h1>
+      <div className="bg-gradient-to-r from-red-500 via-pink-500 to-purple-500 text-white">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" onClick={() => router.back()} className="text-white hover:bg-white/20">
+              ← Volver
+            </Button>
+            <div className="text-center">
+              <h1 className="text-2xl font-bold">Reportar Mascota</h1>
+              <p className="text-pink-100">Ayuda a reunir familias</p>
+            </div>
+            <div className="w-20"></div>
+          </div>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <main className="container px-4 py-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Report Type */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Tipo de reporte</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <RadioGroup
-                value={formData.reportType}
-                onValueChange={(value) => setFormData({ ...formData, reportType: value })}
-                className="grid grid-cols-2 gap-4"
+      <div className="container mx-auto px-4 py-8">
+        {/* Selector de tipo de reporte */}
+        {!reportType && (
+          <div className="max-w-2xl mx-auto">
+            <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm mb-8">
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl bg-gradient-to-r from-red-600 to-purple-600 bg-clip-text text-transparent">
+                  ¿Qué tipo de reporte quieres hacer?
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-8">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <Button
+                    onClick={() => setReportType("lost")}
+                    className="h-32 bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                  >
+                    <div className="text-center">
+                      <AlertTriangle className="w-12 h-12 mx-auto mb-3" />
+                      <h3 className="text-xl font-bold mb-2">Mascota Perdida</h3>
+                      <p className="text-red-100 text-sm">Mi mascota se perdió y necesito ayuda para encontrarla</p>
+                    </div>
+                  </Button>
+
+                  <Button
+                    onClick={() => setReportType("found")}
+                    className="h-32 bg-gradient-to-br from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                  >
+                    <div className="text-center">
+                      <Heart className="w-12 h-12 mx-auto mb-3" />
+                      <h3 className="text-xl font-bold mb-2">Mascota Encontrada</h3>
+                      <p className="text-green-100 text-sm">
+                        Encontré una mascota y quiero ayudar a reunirla con su familia
+                      </p>
+                    </div>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Formulario de reporte */}
+        {reportType && (
+          <div className="max-w-4xl mx-auto">
+            <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
+              <CardHeader
+                className={`${reportType === "lost" ? "bg-gradient-to-r from-red-500 to-pink-500" : "bg-gradient-to-r from-green-500 to-emerald-500"} text-white rounded-t-lg`}
               >
-                <Label
-                  htmlFor="lost"
-                  className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer"
-                >
-                  <RadioGroupItem value="lost" id="lost" className="sr-only" />
-                  <div className="text-2xl mb-2">😢</div>
-                  <span className="text-sm font-medium">Mascota perdida</span>
-                </Label>
-                <Label
-                  htmlFor="found"
-                  className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer"
-                >
-                  <RadioGroupItem value="found" id="found" className="sr-only" />
-                  <div className="text-2xl mb-2">😊</div>
-                  <span className="text-sm font-medium">Mascota encontrada</span>
-                </Label>
-              </RadioGroup>
-            </CardContent>
-          </Card>
-
-          {/* Pet Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Información de la mascota</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nombre de la mascota *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ej: Max, Luna, Rocky"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="breed">Raza</Label>
-                  <Input
-                    id="breed"
-                    value={formData.breed}
-                    onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
-                    placeholder="Ej: Golden Retriever, Mestizo"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Especie</Label>
-                <RadioGroup
-                  value={formData.species}
-                  onValueChange={(value) => setFormData({ ...formData, species: value })}
-                  className="grid grid-cols-3 gap-2"
-                >
-                  <Label
-                    htmlFor="dog"
-                    className="flex items-center space-x-2 rounded-md border p-2 cursor-pointer [&:has([data-state=checked])]:border-primary"
+                <CardTitle className="flex items-center text-xl">
+                  {reportType === "lost" ? (
+                    <>
+                      <AlertTriangle className="w-6 h-6 mr-2" />
+                      Reportar Mascota Perdida
+                    </>
+                  ) : (
+                    <>
+                      <Heart className="w-6 h-6 mr-2" />
+                      Reportar Mascota Encontrada
+                    </>
+                  )}
+                </CardTitle>
+                <div className="flex items-center space-x-2 mt-2">
+                  <Badge className="bg-white/20 text-white">{reportType === "lost" ? "Perdida" : "Encontrada"}</Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setReportType("")}
+                    className="text-white hover:bg-white/20"
                   >
-                    <RadioGroupItem value="dog" id="dog" />
-                    <span>🐕 Perro</span>
-                  </Label>
-                  <Label
-                    htmlFor="cat"
-                    className="flex items-center space-x-2 rounded-md border p-2 cursor-pointer [&:has([data-state=checked])]:border-primary"
-                  >
-                    <RadioGroupItem value="cat" id="cat" />
-                    <span>🐱 Gato</span>
-                  </Label>
-                  <Label
-                    htmlFor="other"
-                    className="flex items-center space-x-2 rounded-md border p-2 cursor-pointer [&:has([data-state=checked])]:border-primary"
-                  >
-                    <RadioGroupItem value="other" id="other" />
-                    <span>🐾 Otro</span>
-                  </Label>
-                </RadioGroup>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="color">Color</Label>
-                  <Input
-                    id="color"
-                    value={formData.color}
-                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    placeholder="Ej: Dorado, Negro, Blanco"
-                  />
+                    Cambiar tipo
+                  </Button>
                 </div>
+              </CardHeader>
+              <CardContent className="p-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
+                  {/* Información de la mascota */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                      <PawPrint className="w-5 h-5 mr-2 text-blue-500" />
+                      Información de la Mascota
+                    </h3>
 
-                <div className="space-y-2">
-                  <Label htmlFor="size">Tamaño</Label>
-                  <Input
-                    id="size"
-                    value={formData.size}
-                    onChange={(e) => setFormData({ ...formData, size: e.target.value })}
-                    placeholder="Ej: Pequeño, Mediano, Grande"
-                  />
-                </div>
-              </div>
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="petName" className="text-gray-700 font-medium">
+                          Nombre de la mascota
+                        </Label>
+                        <Input
+                          id="petName"
+                          placeholder={reportType === "lost" ? "Ej: Max, Luna..." : "Si lo conoces"}
+                          value={formData.petName}
+                          onChange={(e) => handleInputChange("petName", e.target.value)}
+                          className="h-12 border-gray-200 focus:border-blue-500"
+                          required={reportType === "lost"}
+                        />
+                      </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">Descripción *</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Describe características distintivas, comportamiento, etc."
-                  rows={3}
-                  required
-                />
-              </div>
-            </CardContent>
-          </Card>
+                      <div className="space-y-2">
+                        <Label htmlFor="petType" className="text-gray-700 font-medium">
+                          Tipo de mascota
+                        </Label>
+                        <Select value={formData.petType} onValueChange={(value) => handleInputChange("petType", value)}>
+                          <SelectTrigger className="h-12 border-gray-200 focus:border-blue-500">
+                            <SelectValue placeholder="Selecciona el tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="perro">Perro</SelectItem>
+                            <SelectItem value="gato">Gato</SelectItem>
+                            <SelectItem value="ave">Ave</SelectItem>
+                            <SelectItem value="conejo">Conejo</SelectItem>
+                            <SelectItem value="otro">Otro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-          {/* Photos */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Fotos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <Button type="button" variant="outline" className="h-24" onClick={handleTakePhoto}>
-                  <div className="text-center">
-                    <Camera className="w-6 h-6 mx-auto mb-1" />
-                    <span className="text-sm">Tomar foto</span>
+                      <div className="space-y-2">
+                        <Label htmlFor="breed" className="text-gray-700 font-medium">
+                          Raza
+                        </Label>
+                        <Input
+                          id="breed"
+                          placeholder="Ej: Golden Retriever, Mestizo..."
+                          value={formData.breed}
+                          onChange={(e) => handleInputChange("breed", e.target.value)}
+                          className="h-12 border-gray-200 focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="color" className="text-gray-700 font-medium">
+                          Color
+                        </Label>
+                        <Input
+                          id="color"
+                          placeholder="Ej: Marrón, Negro, Blanco..."
+                          value={formData.color}
+                          onChange={(e) => handleInputChange("color", e.target.value)}
+                          className="h-12 border-gray-200 focus:border-blue-500"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="size" className="text-gray-700 font-medium">
+                          Tamaño
+                        </Label>
+                        <Select value={formData.size} onValueChange={(value) => handleInputChange("size", value)}>
+                          <SelectTrigger className="h-12 border-gray-200 focus:border-blue-500">
+                            <SelectValue placeholder="Selecciona el tamaño" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="muy-pequeno">Muy pequeño (menos de 5kg)</SelectItem>
+                            <SelectItem value="pequeno">Pequeño (5-15kg)</SelectItem>
+                            <SelectItem value="mediano">Mediano (15-30kg)</SelectItem>
+                            <SelectItem value="grande">Grande (30-50kg)</SelectItem>
+                            <SelectItem value="muy-grande">Muy grande (más de 50kg)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="age" className="text-gray-700 font-medium">
+                          Edad aproximada
+                        </Label>
+                        <Input
+                          id="age"
+                          placeholder="Ej: 2 años, Cachorro, Adulto..."
+                          value={formData.age}
+                          onChange={(e) => handleInputChange("age", e.target.value)}
+                          className="h-12 border-gray-200 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="description" className="text-gray-700 font-medium">
+                        Descripción detallada
+                      </Label>
+                      <Textarea
+                        id="description"
+                        placeholder="Describe características distintivas, comportamiento, collar, etc..."
+                        value={formData.description}
+                        onChange={(e) => handleInputChange("description", e.target.value)}
+                        className="min-h-24 border-gray-200 focus:border-blue-500"
+                        required
+                      />
+                    </div>
                   </div>
-                </Button>
-                <Button type="button" variant="outline" className="h-24" onClick={handleImageUpload}>
-                  <div className="text-center">
-                    <Upload className="w-6 h-6 mx-auto mb-1" />
-                    <span className="text-sm">Subir imagen</span>
+
+                  {/* Ubicación y fecha */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                      <MapPin className="w-5 h-5 mr-2 text-green-500" />
+                      Ubicación y Fecha
+                    </h3>
+
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="location" className="text-gray-700 font-medium">
+                          {reportType === "lost" ? "Última ubicación vista" : "Ubicación donde la encontraste"}
+                        </Label>
+                        <Input
+                          id="location"
+                          placeholder="Ej: Parque Centenario, Palermo..."
+                          value={formData.lastSeenLocation}
+                          onChange={(e) => handleInputChange("lastSeenLocation", e.target.value)}
+                          className="h-12 border-gray-200 focus:border-blue-500"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="date" className="text-gray-700 font-medium">
+                          {reportType === "lost" ? "Fecha que se perdió" : "Fecha que la encontraste"}
+                        </Label>
+                        <Input
+                          id="date"
+                          type="date"
+                          value={formData.lastSeenDate}
+                          onChange={(e) => handleInputChange("lastSeenDate", e.target.value)}
+                          className="h-12 border-gray-200 focus:border-blue-500"
+                          required
+                        />
+                      </div>
+                    </div>
                   </div>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Location */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Ubicación</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="lastSeenLocation">
-                  {formData.reportType === "lost" ? "Última vez visto en" : "Encontrado en"}
-                </Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="lastSeenLocation"
-                    value={formData.lastSeenLocation}
-                    onChange={(e) => setFormData({ ...formData, lastSeenLocation: e.target.value })}
-                    placeholder="Ej: Parque Centenario, Palermo"
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                  {/* Fotos */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                      <Camera className="w-5 h-5 mr-2 text-purple-500" />
+                      Fotografías
+                    </h3>
 
-          {/* Contact */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Información de contacto</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="contactPhone">Teléfono de contacto</Label>
-                <Input
-                  id="contactPhone"
-                  value={formData.contactPhone}
-                  onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                  placeholder="+54 11 1234-5678"
-                />
-              </div>
+                    <div className="space-y-4">
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          id="image-upload"
+                        />
+                        <label htmlFor="image-upload" className="cursor-pointer">
+                          <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                          <p className="text-gray-600 mb-2">Haz clic para subir fotos o arrastra aquí</p>
+                          <p className="text-sm text-gray-500">Máximo 5 imágenes (JPG, PNG)</p>
+                        </label>
+                      </div>
 
-              {formData.reportType === "lost" && (
-                <div className="space-y-2">
-                  <Label htmlFor="reward">Recompensa (opcional)</Label>
-                  <Input
-                    id="reward"
-                    value={formData.reward}
-                    onChange={(e) => setFormData({ ...formData, reward: e.target.value })}
-                    placeholder="Ej: $10,000 ARS"
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      {images.length > 0 && (
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                          {images.map((image, index) => (
+                            <div key={index} className="relative group">
+                              <img
+                                src={URL.createObjectURL(image) || "/placeholder.svg"}
+                                alt={`Preview ${index + 1}`}
+                                className="w-full h-24 object-cover rounded-lg shadow-md"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeImage(index)}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-          {/* Submit Button */}
-          <Button type="submit" className="w-full" size="lg" disabled={submitting}>
-            <Save className="w-4 h-4 mr-2" />
-            {submitting ? "Creando reporte..." : "Crear reporte"}
-          </Button>
-        </form>
-      </main>
+                  {/* Información de contacto */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                      <User className="w-5 h-5 mr-2 text-orange-500" />
+                      Información de Contacto
+                    </h3>
+
+                    <div className="grid md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="contactName" className="text-gray-700 font-medium">
+                          Nombre completo
+                        </Label>
+                        <Input
+                          id="contactName"
+                          placeholder="Tu nombre"
+                          value={formData.contactName}
+                          onChange={(e) => handleInputChange("contactName", e.target.value)}
+                          className="h-12 border-gray-200 focus:border-blue-500"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="contactPhone" className="text-gray-700 font-medium">
+                          Teléfono
+                        </Label>
+                        <Input
+                          id="contactPhone"
+                          placeholder="+54 11 1234-5678"
+                          value={formData.contactPhone}
+                          onChange={(e) => handleInputChange("contactPhone", e.target.value)}
+                          className="h-12 border-gray-200 focus:border-blue-500"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="contactEmail" className="text-gray-700 font-medium">
+                          Email
+                        </Label>
+                        <Input
+                          id="contactEmail"
+                          type="email"
+                          placeholder="tu@email.com"
+                          value={formData.contactEmail}
+                          onChange={(e) => handleInputChange("contactEmail", e.target.value)}
+                          className="h-12 border-gray-200 focus:border-blue-500"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Recompensa (solo para perdidas) */}
+                  {reportType === "lost" && (
+                    <div className="space-y-6">
+                      <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                        <Heart className="w-5 h-5 mr-2 text-pink-500" />
+                        Recompensa (Opcional)
+                      </h3>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="reward" className="text-gray-700 font-medium">
+                          Monto de recompensa
+                        </Label>
+                        <Input
+                          id="reward"
+                          placeholder="Ej: $10,000 - Solo si deseas ofrecer recompensa"
+                          value={formData.reward}
+                          onChange={(e) => handleInputChange("reward", e.target.value)}
+                          className="h-12 border-gray-200 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Botones de acción */}
+                  <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
+                    <Button type="button" variant="outline" onClick={() => router.back()} className="flex-1 h-12">
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={submitting}
+                      className={`flex-1 h-12 ${reportType === "lost" ? "bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600" : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"} text-white shadow-lg hover:shadow-xl transition-all duration-300`}
+                    >
+                      {submitting ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
+                          Enviando reporte...
+                        </div>
+                      ) : (
+                        `Publicar Reporte ${reportType === "lost" ? "de Pérdida" : "de Encuentro"}`
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
