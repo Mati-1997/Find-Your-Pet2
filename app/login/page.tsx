@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -17,32 +17,32 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [checkingAuth, setCheckingAuth] = useState(true)
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const verified = searchParams.get("verified") === "true"
-  const errorParam = searchParams.get("error")
-  const errorDescription = searchParams.get("error_description")
 
   useEffect(() => {
-    if (errorParam && errorDescription) {
-      setError(`${errorDescription}`)
-    }
-
     // Verificar si el usuario ya está autenticado
     const checkSession = async () => {
-      const supabase = createClient()
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      try {
+        const supabase = createClient()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
 
-      if (session) {
-        console.log("Usuario ya autenticado, redirigiendo...")
-        router.replace("/home")
+        if (session) {
+          console.log("Usuario ya autenticado, redirigiendo...")
+          window.location.href = "/home" // Usar window.location para forzar navegación
+          return
+        }
+      } catch (error) {
+        console.error("Error checking session:", error)
+      } finally {
+        setCheckingAuth(false)
       }
     }
 
     checkSession()
-  }, [errorParam, errorDescription, router])
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,16 +65,29 @@ export default function LoginPage() {
       }
 
       console.log("Sesión iniciada exitosamente:", data.session?.user.id)
-      setSuccess("Inicio de sesión exitoso")
+      setSuccess("Inicio de sesión exitoso - Redirigiendo...")
 
-      // Redirigir inmediatamente sin timeout
-      router.replace("/home")
+      // Usar window.location para forzar la navegación
+      setTimeout(() => {
+        window.location.href = "/home"
+      }, 1000)
     } catch (error: any) {
       console.error("Error en login:", error)
       setError(error.message || "Error al iniciar sesión")
     } finally {
       setLoading(false)
     }
+  }
+
+  if (checkingAuth) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Verificando sesión...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -84,15 +97,6 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold">Find Your Pet</h1>
           <p className="text-gray-600 mt-2">Inicia sesión en tu cuenta</p>
         </div>
-
-        {verified && (
-          <Alert className="bg-green-50 border-green-200">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <AlertDescription className="text-green-700">
-              ¡Tu correo ha sido verificado correctamente! Ahora puedes iniciar sesión.
-            </AlertDescription>
-          </Alert>
-        )}
 
         {error && (
           <Alert variant="destructive">
@@ -122,6 +126,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="tu@email.com"
+              disabled={loading}
             />
           </div>
 
@@ -136,6 +141,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder="••••••••"
+              disabled={loading}
             />
           </div>
 

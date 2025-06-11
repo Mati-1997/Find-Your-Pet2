@@ -3,14 +3,12 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { MapPin, Search, PlusCircle, User, LogOut } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { createClient } from "@/lib/supabase/client"
+import { MapPin, Search, PlusCircle, User, LogOut } from "lucide-react"
 
 export default function HomePage() {
-  const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -23,27 +21,27 @@ export default function HomePage() {
         } = await supabase.auth.getSession()
 
         if (!session) {
-          router.replace("/login")
+          window.location.href = "/login"
           return
         }
 
         setUser(session.user)
       } catch (error) {
         console.error("Error checking auth:", error)
-        router.replace("/login")
+        window.location.href = "/login"
       } finally {
         setLoading(false)
       }
     }
 
     checkAuth()
-  }, [router])
+  }, [])
 
   const handleLogout = async () => {
     try {
       const supabase = createClient()
       await supabase.auth.signOut()
-      router.replace("/login")
+      window.location.href = "/login"
     } catch (error) {
       console.error("Error logging out:", error)
     }
@@ -54,14 +52,18 @@ export default function HomePage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando aplicación...</p>
+          <p className="text-gray-600">Cargando...</p>
         </div>
       </div>
     )
   }
 
   if (!user) {
-    return null // Evita flash de contenido antes de redirect
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-600">Redirigiendo al login...</p>
+      </div>
+    )
   }
 
   return (
@@ -83,15 +85,15 @@ export default function HomePage() {
       </header>
 
       {/* Main Content */}
-      <main className="p-4 space-y-6">
+      <main className="p-4 space-y-6 pb-20">
         {/* Welcome Section */}
         <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
           <CardContent className="p-6">
-            <h2 className="text-2xl font-bold mb-2">¡Bienvenido a Find Your Pet!</h2>
-            <p className="mb-4">Tu plataforma para encontrar mascotas perdidas usando tecnología avanzada</p>
+            <h2 className="text-2xl font-bold mb-2">¡Bienvenido!</h2>
+            <p className="mb-4">Tu plataforma para encontrar mascotas perdidas</p>
             <div className="flex space-x-3">
               <Button variant="secondary" className="bg-white text-blue-600 hover:bg-gray-100">
-                Reportar mascota perdida
+                Reportar mascota
               </Button>
               <Button variant="outline" className="border-white text-white hover:bg-white/20">
                 Buscar mascotas
@@ -104,38 +106,21 @@ export default function HomePage() {
         <div>
           <h3 className="text-lg font-semibold mb-4 text-gray-900">Acciones rápidas</h3>
           <div className="grid grid-cols-2 gap-4">
-            <ActionCard
-              icon={<Search className="w-6 h-6" />}
-              title="Buscar Mascota"
-              description="Usa IA para encontrar mascotas"
-            />
-            <ActionCard
-              icon={<MapPin className="w-6 h-6" />}
-              title="Ver Mapa"
-              description="Ubicaciones de mascotas perdidas"
-            />
-            <ActionCard
-              icon={<PlusCircle className="w-6 h-6" />}
-              title="Reportar"
-              description="Reporta una mascota perdida"
-            />
-            <ActionCard icon={<User className="w-6 h-6" />} title="Perfil" description="Gestiona tu cuenta" />
+            <ActionCard icon={<Search className="w-6 h-6" />} title="Buscar" description="Encuentra mascotas" />
+            <ActionCard icon={<MapPin className="w-6 h-6" />} title="Mapa" description="Ver ubicaciones" />
+            <ActionCard icon={<PlusCircle className="w-6 h-6" />} title="Reportar" description="Reportar mascota" />
+            <ActionCard icon={<User className="w-6 h-6" />} title="Perfil" description="Tu cuenta" />
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div>
-          <h3 className="text-lg font-semibold mb-4 text-gray-900">Actividad reciente</h3>
-          <Card>
-            <CardContent className="p-6 text-center">
-              <div className="text-gray-400 mb-2">
-                <Search className="w-12 h-12 mx-auto" />
-              </div>
-              <h4 className="font-medium text-gray-900 mb-1">No hay actividad reciente</h4>
-              <p className="text-sm text-gray-500">Las mascotas reportadas aparecerán aquí</p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Status */}
+        <Card>
+          <CardContent className="p-6 text-center">
+            <h4 className="font-medium text-gray-900 mb-2">¡Aplicación funcionando!</h4>
+            <p className="text-sm text-gray-500">Login exitoso - Usuario autenticado</p>
+            <div className="mt-4 text-xs text-gray-400">Usuario ID: {user?.id?.substring(0, 8)}...</div>
+          </CardContent>
+        </Card>
       </main>
 
       {/* Bottom Navigation */}
@@ -147,9 +132,6 @@ export default function HomePage() {
           <NavButton icon={<User className="w-5 h-5" />} label="Perfil" />
         </div>
       </nav>
-
-      {/* Padding bottom to account for fixed navigation */}
-      <div className="h-16"></div>
     </div>
   )
 }
