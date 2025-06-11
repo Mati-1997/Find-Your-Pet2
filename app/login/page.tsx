@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CheckCircle } from "lucide-react"
+import { CheckCircle, Loader2 } from "lucide-react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [redirecting, setRedirecting] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const verified = searchParams.get("verified") === "true"
@@ -37,7 +38,8 @@ export default function LoginPage() {
 
       if (session) {
         console.log("Usuario ya autenticado, redirigiendo...")
-        router.push("/home")
+        setRedirecting(true)
+        router.push("/dashboard")
       }
     }
 
@@ -48,6 +50,7 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setSuccess(null)
 
     try {
       console.log("Intentando iniciar sesión con email:", email)
@@ -65,17 +68,30 @@ export default function LoginPage() {
 
       console.log("Sesión iniciada exitosamente:", data.session?.user.id)
       setSuccess("Inicio de sesión exitoso")
+      setRedirecting(true)
 
-      // Redirigir al usuario después de un inicio de sesión exitoso
+      // Redirigir al dashboard
       setTimeout(() => {
-        router.push("/home")
-      }, 1000)
+        console.log("Redirigiendo a /dashboard...")
+        router.push("/dashboard")
+      }, 2000)
     } catch (error: any) {
       console.error("Error en login:", error)
       setError(error.message || "Error al iniciar sesión")
     } finally {
       setLoading(false)
     }
+  }
+
+  if (redirecting) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Redirigiendo al dashboard...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -103,7 +119,11 @@ export default function LoginPage() {
 
         {success && (
           <Alert className="bg-green-50 border-green-200">
-            <AlertDescription className="text-green-700">{success}</AlertDescription>
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            <AlertDescription className="text-green-700 flex items-center gap-2">
+              {success}
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </AlertDescription>
           </Alert>
         )}
 
@@ -136,8 +156,15 @@ export default function LoginPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full bg-black hover:bg-gray-800" disabled={loading}>
-            {loading ? "Iniciando Sesión..." : "Iniciar Sesión"}
+          <Button type="submit" className="w-full bg-black hover:bg-gray-800" disabled={loading || redirecting}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Iniciando Sesión...
+              </>
+            ) : (
+              "Iniciar Sesión"
+            )}
           </Button>
         </form>
 
