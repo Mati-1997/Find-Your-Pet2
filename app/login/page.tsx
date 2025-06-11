@@ -2,8 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -17,32 +16,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [checkingAuth, setCheckingAuth] = useState(true)
-  const router = useRouter()
-
-  useEffect(() => {
-    // Verificar si el usuario ya está autenticado
-    const checkSession = async () => {
-      try {
-        const supabase = createClient()
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
-        if (session) {
-          console.log("Usuario ya autenticado, redirigiendo...")
-          window.location.href = "/home" // Usar window.location para forzar navegación
-          return
-        }
-      } catch (error) {
-        console.error("Error checking session:", error)
-      } finally {
-        setCheckingAuth(false)
-      }
-    }
-
-    checkSession()
-  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,29 +38,18 @@ export default function LoginPage() {
       }
 
       console.log("Sesión iniciada exitosamente:", data.session?.user.id)
-      setSuccess("Inicio de sesión exitoso - Redirigiendo...")
+      setSuccess("Inicio de sesión exitoso")
 
-      // Usar window.location para forzar la navegación
+      // Redirigir después de un breve delay
       setTimeout(() => {
         window.location.href = "/home"
-      }, 1000)
+      }, 1500)
     } catch (error: any) {
       console.error("Error en login:", error)
       setError(error.message || "Error al iniciar sesión")
     } finally {
       setLoading(false)
     }
-  }
-
-  if (checkingAuth) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Verificando sesión...</p>
-        </div>
-      </div>
-    )
   }
 
   return (

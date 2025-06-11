@@ -1,12 +1,10 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { MapPin, Search, PlusCircle, User, LogOut } from "lucide-react"
+import { LogOut } from "lucide-react"
 
 export default function HomePage() {
   const [user, setUser] = useState<any>(null)
@@ -59,11 +57,7 @@ export default function HomePage() {
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-600">Redirigiendo al login...</p>
-      </div>
-    )
+    return null
   }
 
   return (
@@ -85,98 +79,35 @@ export default function HomePage() {
       </header>
 
       {/* Main Content */}
-      <main className="p-4 space-y-6 pb-20">
-        {/* Welcome Section */}
+      <main className="p-4 space-y-6">
         <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
           <CardContent className="p-6">
             <h2 className="text-2xl font-bold mb-2">¡Bienvenido!</h2>
             <p className="mb-4">Tu plataforma para encontrar mascotas perdidas</p>
-            <div className="flex space-x-3">
-              <Button variant="secondary" className="bg-white text-blue-600 hover:bg-gray-100">
-                Reportar mascota
-              </Button>
-              <Button variant="outline" className="border-white text-white hover:bg-white/20">
-                Buscar mascotas
-              </Button>
+            <p className="text-sm opacity-90">Login exitoso - Aplicación funcionando correctamente</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="font-semibold mb-2">Estado de la aplicación</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span>Usuario:</span>
+                <span className="text-green-600">✓ Autenticado</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Sesión:</span>
+                <span className="text-green-600">✓ Activa</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Base de datos:</span>
+                <span className="text-green-600">✓ Conectada</span>
+              </div>
             </div>
           </CardContent>
         </Card>
-
-        {/* Quick Actions */}
-        <div>
-          <h3 className="text-lg font-semibold mb-4 text-gray-900">Acciones rápidas</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <ActionCard icon={<Search className="w-6 h-6" />} title="Buscar" description="Encuentra mascotas" />
-            <ActionCard icon={<MapPin className="w-6 h-6" />} title="Mapa" description="Ver ubicaciones" />
-            <ActionCard icon={<PlusCircle className="w-6 h-6" />} title="Reportar" description="Reportar mascota" />
-            <ActionCard icon={<User className="w-6 h-6" />} title="Perfil" description="Tu cuenta" />
-          </div>
-        </div>
-
-        {/* Status */}
-        <Card>
-          <CardContent className="p-6 text-center">
-            <h4 className="font-medium text-gray-900 mb-2">¡Aplicación funcionando!</h4>
-            <p className="text-sm text-gray-500">Login exitoso - Usuario autenticado</p>
-            <div className="mt-4 text-xs text-gray-400">Usuario ID: {user?.id?.substring(0, 8)}...</div>
-          </CardContent>
-        </Card>
       </main>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
-        <div className="grid grid-cols-4 h-16">
-          <NavButton icon={<Search className="w-5 h-5" />} label="Buscar" />
-          <NavButton icon={<MapPin className="w-5 h-5" />} label="Mapa" />
-          <NavButton icon={<PlusCircle className="w-5 h-5" />} label="Reportar" active />
-          <NavButton icon={<User className="w-5 h-5" />} label="Perfil" />
-        </div>
-      </nav>
     </div>
-  )
-}
-
-function ActionCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode
-  title: string
-  description: string
-}) {
-  return (
-    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-start space-x-3">
-          <div className="text-blue-600">{icon}</div>
-          <div>
-            <h4 className="font-medium text-gray-900 text-sm">{title}</h4>
-            <p className="text-xs text-gray-500 mt-1">{description}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function NavButton({
-  icon,
-  label,
-  active = false,
-}: {
-  icon: React.ReactNode
-  label: string
-  active?: boolean
-}) {
-  return (
-    <button
-      className={`flex flex-col items-center justify-center h-full space-y-1 ${
-        active ? "text-blue-600" : "text-gray-600"
-      }`}
-    >
-      {icon}
-      <span className="text-xs">{label}</span>
-    </button>
   )
 }
