@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
 import { createClient } from "@/lib/supabase/client"
+import { useAuthCheck } from "@/hooks/use-auth-check"
 import MapView from "@/components/map-view"
 import AlertSummary from "@/components/alert-summary"
 
@@ -29,8 +30,7 @@ interface PetWithLocation {
 export default function DashboardPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading } = useAuthCheck()
   const [pets, setPets] = useState<PetWithLocation[]>([])
   const [activeTab, setActiveTab] = useState("map")
   const [searchQuery, setSearchQuery] = useState("")
@@ -39,43 +39,11 @@ export default function DashboardPage() {
 
   // Verificar autenticación y cargar datos
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const supabase = createClient()
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession()
-
-        if (error) {
-          console.error("Error checking session:", error)
-          router.push("/login")
-          return
-        }
-
-        if (!session) {
-          router.push("/login")
-          return
-        }
-
-        setUser(session.user)
-        await loadPetsFromDatabase()
-        await getUserLocation()
-      } catch (error) {
-        console.error("Error in auth check:", error)
-        toast({
-          title: "Error de autenticación",
-          description: "Por favor, inicia sesión nuevamente.",
-          variant: "destructive",
-        })
-        router.push("/login")
-      } finally {
-        setLoading(false)
-      }
+    if (!loading && user) {
+      loadPetsFromDatabase()
+      getUserLocation()
     }
-
-    checkAuth()
-  }, [router])
+  }, [loading, user])
 
   const getUserLocation = () => {
     if (navigator.geolocation) {
@@ -100,14 +68,43 @@ export default function DashboardPage() {
       const { data: petsData, error } = await supabase
         .from("pets")
         .select("*")
-        .eq("is_lost", true)
+        .eq("status", "active")
         .order("created_at", { ascending: false })
 
       if (error) {
         console.error("Error loading pets:", error)
-        // Si hay error, mostrar array vacío en lugar de ejemplos
-        setPets([])
-        setFilteredLocations([])
+        // En lugar de mostrar array vacío, mostrar datos de ejemplo para testing
+        const examplePets: PetWithLocation[] = [
+          {
+            id: "example-1",
+            name: "Max",
+            breed: "Golden Retriever",
+            status: "Perdido",
+            is_lost: true,
+            latitude: userLocation.lat + 0.005,
+            longitude: userLocation.lng + 0.005,
+            timestamp: new Date().toISOString(),
+            description: "Perro dorado, muy amigable, collar azul",
+          },
+          {
+            id: "example-2",
+            name: "Luna",
+            breed: "Mestizo",
+            status: "Encontrado",
+            is_lost: false,
+            latitude: userLocation.lat - 0.003,
+            longitude: userLocation.lng + 0.002,
+            timestamp: new Date(Date.now() - 86400000).toISOString(),
+            description: "Gata blanca con manchas negras",
+          },
+        ]
+        setPets(examplePets)
+        setFilteredLocations(examplePets)
+
+        toast({
+          title: "Usando datos de ejemplo",
+          description: "No se pudo conectar a la base de datos. Mostrando datos de prueba.",
+        })
         return
       }
 
@@ -129,14 +126,27 @@ export default function DashboardPage() {
         setPets(formattedPets)
         setFilteredLocations(formattedPets)
       } else {
-        // Si no hay datos reales, mostrar array vacío
-        setPets([])
-        setFilteredLocations([])
+        // Si no hay datos reales, mostrar datos de ejemplo
+        const examplePets: PetWithLocation[] = [
+          {
+            id: "example-1",
+            name: "Max",
+            breed: "Golden Retriever",
+            status: "Perdido",
+            is_lost: true,
+            latitude: userLocation.lat + 0.005,
+            longitude: userLocation.lng + 0.005,
+            timestamp: new Date().toISOString(),
+            description: "Perro dorado, muy amigable, collar azul",
+          },
+        ]
+        setPets(examplePets)
+        setFilteredLocations(examplePets)
       }
     } catch (error) {
       console.error("Error loading pets:", error)
       toast({
-        title: "Error",
+        title: "Error de conexión",
         description: "No se pudieron cargar las mascotas. Verifica tu conexión.",
         variant: "destructive",
       })
@@ -383,9 +393,7 @@ export default function DashboardPage() {
               title="Huella nasal"
               icon="👃"
               description="Identificación única"
-              onClick={() =>
-                toast({ title: "Huella nasal", description: "Función en desarrollo - Próximamente disponible" })
-              }
+              onClick={() => router.push("/nose-print")}
             />
             <MethodCard
               title="Redes"
@@ -411,11 +419,7 @@ export default function DashboardPage() {
           <Button
             variant="ghost"
             className="flex flex-col items-center justify-center h-full rounded-none"
-            onClick={() => {
-              setActiveTab("map")
-              // Scroll to map section
-              document.querySelector('[data-state="active"]')?.scrollIntoView({ behavior: "smooth" })
-            }}
+            onClick={() => router.push("/map")}
           >
             <MapPin className="w-5 h-5" />
             <span className="text-xs mt-1">Mapa</span>

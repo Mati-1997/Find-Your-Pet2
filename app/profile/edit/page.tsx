@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Save, User, Mail, Phone, MapPin } from "lucide-react"
@@ -10,61 +12,45 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { createClient } from "@/lib/supabase/client"
+import { useAuthCheck } from "@/hooks/use-auth-check"
 
 export default function EditProfilePage() {
   const router = useRouter()
   const { toast } = useToast()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading } = useAuthCheck()
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
-    bio: "",
     location: "",
+    bio: "",
   })
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const supabase = createClient()
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
-        if (!session) {
-          router.push("/login")
-          return
-        }
-
-        setUser(session.user)
-        setFormData({
-          full_name: session.user.user_metadata?.full_name || "",
-          phone: session.user.user_metadata?.phone || "",
-          bio: session.user.user_metadata?.bio || "",
-          location: session.user.user_metadata?.location || "Buenos Aires, Argentina",
-        })
-      } catch (error) {
-        console.error("Error checking auth:", error)
-        router.push("/login")
-      } finally {
-        setLoading(false)
-      }
+    if (!loading && user) {
+      // Load existing user data
+      setFormData({
+        full_name: user.user_metadata?.full_name || "",
+        phone: user.user_metadata?.phone || "",
+        location: user.user_metadata?.location || "Buenos Aires, Argentina",
+        bio: user.user_metadata?.bio || "",
+      })
     }
+  }, [loading, user])
 
-    checkAuth()
-  }, [router])
-
-  const handleSave = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setSaving(true)
+
     try {
       const supabase = createClient()
+
       const { error } = await supabase.auth.updateUser({
         data: {
           full_name: formData.full_name,
           phone: formData.phone,
-          bio: formData.bio,
           location: formData.location,
+          bio: formData.bio,
         },
       })
 
@@ -74,7 +60,7 @@ export default function EditProfilePage() {
 
       toast({
         title: "Perfil actualizado",
-        description: "Tus datos han sido guardados correctamente",
+        description: "Los cambios se han guardado correctamente",
       })
 
       router.push("/profile")
@@ -82,7 +68,7 @@ export default function EditProfilePage() {
       console.error("Error updating profile:", error)
       toast({
         title: "Error",
-        description: "No se pudo actualizar el perfil",
+        description: "No se pudo actualizar el perfil. Intenta nuevamente.",
         variant: "destructive",
       })
     } finally {
@@ -110,37 +96,36 @@ export default function EditProfilePage() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-lg font-semibold">Editar Perfil</h1>
-          <div className="ml-auto">
-            <Button onClick={handleSave} disabled={saving}>
-              <Save className="w-4 h-4 mr-1" />
-              {saving ? "Guardando..." : "Guardar"}
-            </Button>
-          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="container px-4 py-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Información Personal</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Profile Picture */}
-            <div className="flex items-center space-x-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Profile Picture */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Foto de perfil</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center space-x-4">
               <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                 <User className="w-10 h-10 text-white" />
               </div>
               <div>
-                <Button variant="outline" size="sm">
+                <Button type="button" variant="outline" size="sm">
                   Cambiar foto
                 </Button>
                 <p className="text-sm text-gray-500 mt-1">JPG, PNG o GIF. Máximo 2MB.</p>
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* Form Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Personal Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Información personal</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="full_name">Nombre completo</Label>
                 <div className="relative">
@@ -191,20 +176,26 @@ export default function EditProfilePage() {
                   />
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="bio">Biografía</Label>
-              <Textarea
-                id="bio"
-                value={formData.bio}
-                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                placeholder="Cuéntanos un poco sobre ti..."
-                rows={4}
-              />
-            </div>
-          </CardContent>
-        </Card>
+              <div className="space-y-2">
+                <Label htmlFor="bio">Biografía</Label>
+                <Textarea
+                  id="bio"
+                  value={formData.bio}
+                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                  placeholder="Cuéntanos un poco sobre ti..."
+                  rows={3}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Save Button */}
+          <Button type="submit" className="w-full" size="lg" disabled={saving}>
+            <Save className="w-4 h-4 mr-2" />
+            {saving ? "Guardando..." : "Guardar cambios"}
+          </Button>
+        </form>
       </main>
     </div>
   )

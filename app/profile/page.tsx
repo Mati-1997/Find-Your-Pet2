@@ -8,39 +8,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { createClient } from "@/lib/supabase/client"
+import { useAuthCheck } from "@/hooks/use-auth-check"
 
 export default function ProfilePage() {
   const router = useRouter()
   const { toast } = useToast()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading } = useAuthCheck()
   const [userPets, setUserPets] = useState<any[]>([])
 
+  // Remove the existing useEffect for auth check and replace with:
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const supabase = createClient()
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
-        if (!session) {
-          router.push("/login")
-          return
-        }
-
-        setUser(session.user)
-        await loadUserPets(session.user.id)
-      } catch (error) {
-        console.error("Error checking auth:", error)
-        router.push("/login")
-      } finally {
-        setLoading(false)
-      }
+    if (!loading && user) {
+      loadUserPets(user.id)
     }
-
-    checkAuth()
-  }, [router])
+  }, [loading, user])
 
   const loadUserPets = async (userId: string) => {
     try {

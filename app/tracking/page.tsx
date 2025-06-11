@@ -1,202 +1,315 @@
 "use client"
 
-import { useState } from "react"
-import Link from "next/link"
-import { ArrowLeft, Layers, ZoomIn, ZoomOut, Target } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { ArrowLeft, MapPin, Satellite, Battery, Signal, Clock, Play, Pause, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import StaticMap from "@/components/static-map"
-import LocationHistory from "@/components/location-history"
-import { getPetLocationHistory } from "@/lib/location-service"
+import { useToast } from "@/components/ui/use-toast"
+import { useAuthCheck } from "@/hooks/use-auth-check"
+import MapView from "@/components/map-view"
+
+interface GPSDevice {
+  id: string
+  name: string
+  petName: string
+  batteryLevel: number
+  signalStrength: number
+  isActive: boolean
+  lastUpdate: string
+  latitude: number
+  longitude: number
+}
 
 export default function TrackingPage() {
-  const [selectedLocation, setSelectedLocation] = useState(null)
-  const [zoom, setZoom] = useState(13)
+  const router = useRouter()
+  const { toast } = useToast()
+  const { user, loading } = useAuthCheck()
+  const [devices, setDevices] = useState<GPSDevice[]>([])
+  const [selectedDevice, setSelectedDevice] = useState<GPSDevice | null>(null)
+  const [isTracking, setIsTracking] = useState(false)
+  const [userLocation, setUserLocation] = useState({ lat: -34.6037, lng: -58.3816 })
 
-  const petLocations = getPetLocationHistory("1")
+  useEffect(() => {
+    if (!loading && user) {
+      loadGPSDevices()
+      getUserLocation()
+    }
+  }, [loading, user])
 
-  const handleLocationSelect = (location) => {
-    setSelectedLocation(location)
+  const getUserLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          })
+        },
+        (error) => {
+          console.log("Error getting location:", error)
+        },
+      )
+    }
+  }
+
+  const loadGPSDevices = async () => {
+    // Simular dispositivos GPS para demo
+    const mockDevices: GPSDevice[] = [
+      {
+        id: "gps-001",
+        name: "Collar GPS Max",
+        petName: "Max",
+        batteryLevel: 85,
+        signalStrength: 4,
+        isActive: true,
+        lastUpdate: new Date().toISOString(),
+        latitude: userLocation.lat + 0.002,
+        longitude: userLocation.lng + 0.003,
+      },
+      {
+        id: "gps-002",
+        name: "Collar GPS Luna",
+        petName: "Luna",
+        batteryLevel: 45,
+        signalStrength: 3,
+        isActive: false,
+        lastUpdate: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
+        latitude: userLocation.lat - 0.001,
+        longitude: userLocation.lng + 0.002,
+      },
+    ]
+
+    setDevices(mockDevices)
+    if (mockDevices.length > 0) {
+      setSelectedDevice(mockDevices[0])
+    }
+  }
+
+  const toggleTracking = () => {
+    setIsTracking(!isTracking)
+    toast({
+      title: isTracking ? "Rastreo pausado" : "Rastreo iniciado",
+      description: isTracking ? "El rastreo GPS ha sido pausado" : "Iniciando rastreo GPS en tiempo real",
+    })
+  }
+
+  const refreshLocation = () => {
+    toast({
+      title: "Actualizando ubicación",
+      description: "Obteniendo la última ubicación del dispositivo GPS...",
+    })
+
+    // Simular actualización de ubicación
+    setTimeout(() => {
+      if (selectedDevice) {
+        const updatedDevice = {
+          ...selectedDevice,
+          lastUpdate: new Date().toISOString(),
+          latitude: selectedDevice.latitude + (Math.random() - 0.5) * 0.001,
+          longitude: selectedDevice.longitude + (Math.random() - 0.5) * 0.001,
+        }
+        setSelectedDevice(updatedDevice)
+        setDevices(devices.map((d) => (d.id === updatedDevice.id ? updatedDevice : d)))
+      }
+
+      toast({
+        title: "Ubicación actualizada",
+        description: "Se ha obtenido la última ubicación del dispositivo",
+      })
+    }, 2000)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white border-b">
         <div className="container flex items-center h-16 px-4">
-          <Link href="/home" className="mr-4">
+          <Button variant="ghost" className="mr-4 p-0" onClick={() => router.push("/dashboard")}>
             <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="text-lg font-semibold">Rastreo en vivo</h1>
+          </Button>
+          <h1 className="text-lg font-semibold">Rastreo GPS</h1>
           <div className="ml-auto">
-            <Badge className="bg-green-500">En línea</Badge>
+            <Button variant="outline" size="sm">
+              <Settings className="w-4 h-4 mr-1" />
+              Configurar
+            </Button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 relative">
-        {/* Map */}
-        <div className="absolute inset-0">
-          <StaticMap
-            petLocations={petLocations}
-            height="100%"
-            width="100%"
-            initialZoom={zoom}
-            onMarkerClick={handleLocationSelect}
-          />
-        </div>
-
-        {/* Map Controls */}
-        <div className="absolute top-4 right-4 flex flex-col space-y-2">
-          <Button
-            variant="secondary"
-            size="icon"
-            className="rounded-full shadow-lg"
-            onClick={() => setZoom((prev) => Math.min(prev + 1, 20))}
-          >
-            <ZoomIn className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="secondary"
-            size="icon"
-            className="rounded-full shadow-lg"
-            onClick={() => setZoom((prev) => Math.max(prev - 1, 1))}
-          >
-            <ZoomOut className="w-5 h-5" />
-          </Button>
-          <Button variant="secondary" size="icon" className="rounded-full shadow-lg">
-            <Layers className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="secondary"
-            size="icon"
-            className="rounded-full shadow-lg"
-            onClick={() => {
-              if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                  (position) => {
-                    console.log("Current position:", position.coords)
-                    // En una implementación real, actualizaríamos el centro del mapa
-                  },
-                  (error) => {
-                    console.error("Error getting current position:", error)
-                  },
-                )
-              }
-            }}
-          >
-            <Target className="w-5 h-5" />
-          </Button>
-        </div>
-
-        {/* Bottom Sheet */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl shadow-lg">
-          <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto my-2"></div>
-
-          <Tabs defaultValue="live">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="live">En vivo</TabsTrigger>
-              <TabsTrigger value="history">Historial</TabsTrigger>
-              <TabsTrigger value="devices">Dispositivos</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="live" className="p-4 space-y-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gray-200 rounded-full mr-4"></div>
-                    <div>
-                      <h3 className="font-medium">Max</h3>
-                      <p className="text-sm text-gray-500">Última actualización: hace 5 min</p>
-                    </div>
-                    <div className="ml-auto">
-                      <Badge className="bg-green-500">Activo</Badge>
-                    </div>
+      <main className="container px-4 py-6 space-y-6">
+        {/* Device Status */}
+        {selectedDevice && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Satellite className="w-5 h-5 mr-2" />
+                  {selectedDevice.name}
+                </div>
+                <Badge variant={selectedDevice.isActive ? "default" : "secondary"}>
+                  {selectedDevice.isActive ? "Activo" : "Inactivo"}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="flex items-center space-x-2">
+                  <Battery className="w-4 h-4 text-green-600" />
+                  <div>
+                    <p className="text-sm font-medium">{selectedDevice.batteryLevel}%</p>
+                    <p className="text-xs text-gray-500">Batería</p>
                   </div>
-                </CardContent>
-              </Card>
-
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium">Información de ubicación</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <Card>
-                    <CardContent className="p-3">
-                      <div className="text-xs text-gray-500">Distancia</div>
-                      <div className="font-medium">1.2 km</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-3">
-                      <div className="text-xs text-gray-500">Velocidad</div>
-                      <div className="font-medium">0 km/h</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-3">
-                      <div className="text-xs text-gray-500">Batería collar</div>
-                      <div className="font-medium">85%</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-3">
-                      <div className="text-xs text-gray-500">Señal</div>
-                      <div className="font-medium">Fuerte</div>
-                    </CardContent>
-                  </Card>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Signal className="w-4 h-4 text-blue-600" />
+                  <div>
+                    <p className="text-sm font-medium">{selectedDevice.signalStrength}/5</p>
+                    <p className="text-xs text-gray-500">Señal</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Clock className="w-4 h-4 text-gray-600" />
+                  <div>
+                    <p className="text-sm font-medium">
+                      {new Date(selectedDevice.lastUpdate).toLocaleTimeString("es-AR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                    <p className="text-xs text-gray-500">Última actualización</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MapPin className="w-4 h-4 text-red-600" />
+                  <div>
+                    <p className="text-sm font-medium">{selectedDevice.petName}</p>
+                    <p className="text-xs text-gray-500">Mascota</p>
+                  </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        )}
 
-              <Button className="w-full">Activar alerta de proximidad</Button>
-            </TabsContent>
-
-            <TabsContent value="history" className="p-4 space-y-4">
-              <LocationHistory locations={petLocations} onLocationSelect={handleLocationSelect} />
-            </TabsContent>
-
-            <TabsContent value="devices" className="p-4 space-y-4">
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium">Dispositivos activos</h3>
-                <Card>
-                  <CardContent className="p-4 space-y-4">
-                    <div className="flex items-center">
-                      <div className="text-2xl mr-3">🛰️</div>
-                      <div className="flex-1">
-                        <h4 className="text-sm font-medium">Collar GPS</h4>
-                        <p className="text-xs text-gray-500">Batería: 85%</p>
-                      </div>
-                      <Badge className="bg-green-500">Activo</Badge>
-                    </div>
-
-                    <div className="flex items-center">
-                      <div className="text-2xl mr-3">📱</div>
-                      <div className="flex-1">
-                        <h4 className="text-sm font-medium">Chip NFC</h4>
-                        <p className="text-xs text-gray-500">ID: #12345678</p>
-                      </div>
-                      <Badge className="bg-green-500">Activo</Badge>
-                    </div>
-
-                    <div className="flex items-center">
-                      <div className="text-2xl mr-3">📶</div>
-                      <div className="flex-1">
-                        <h4 className="text-sm font-medium">Bluetooth</h4>
-                        <p className="text-xs text-gray-500">Alcance: 100m</p>
-                      </div>
-                      <Badge className="bg-green-500">Activo</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Button variant="outline" className="w-full">
-                Añadir nuevo dispositivo
-              </Button>
-            </TabsContent>
-          </Tabs>
+        {/* Control Buttons */}
+        <div className="flex space-x-4">
+          <Button onClick={toggleTracking} className="flex-1">
+            {isTracking ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+            {isTracking ? "Pausar rastreo" : "Iniciar rastreo"}
+          </Button>
+          <Button variant="outline" onClick={refreshLocation}>
+            <MapPin className="w-4 h-4 mr-2" />
+            Actualizar ubicación
+          </Button>
         </div>
+
+        {/* Map */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Ubicación en tiempo real</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {selectedDevice ? (
+              <MapView
+                petLocations={[
+                  {
+                    id: selectedDevice.id,
+                    name: selectedDevice.petName,
+                    latitude: selectedDevice.latitude,
+                    longitude: selectedDevice.longitude,
+                    timestamp: selectedDevice.lastUpdate,
+                    status: "found",
+                  },
+                ]}
+                height="400px"
+                initialViewState={{
+                  latitude: selectedDevice.latitude,
+                  longitude: selectedDevice.longitude,
+                  zoom: 15,
+                }}
+              />
+            ) : (
+              <div className="h-96 bg-gray-100 rounded-lg flex items-center justify-center">
+                <div className="text-center text-gray-500">
+                  <Satellite className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p>No hay dispositivos GPS conectados</p>
+                  <p className="text-sm mt-2">Conecta un collar GPS para ver la ubicación</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Device List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Dispositivos GPS</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {devices.length > 0 ? (
+              <div className="space-y-4">
+                {devices.map((device) => (
+                  <Card
+                    key={device.id}
+                    className={`cursor-pointer transition-colors ${
+                      selectedDevice?.id === device.id ? "border-primary" : "hover:border-gray-300"
+                    }`}
+                    onClick={() => setSelectedDevice(device)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <Satellite className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium">{device.name}</h3>
+                            <p className="text-sm text-gray-500">Mascota: {device.petName}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge variant={device.isActive ? "default" : "secondary"}>
+                            {device.isActive ? "Activo" : "Inactivo"}
+                          </Badge>
+                          <p className="text-xs text-gray-500 mt-1">Batería: {device.batteryLevel}%</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Satellite className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                <p>No hay dispositivos GPS registrados</p>
+                <p className="text-sm mt-2">Conecta tu primer collar GPS</p>
+                <Button
+                  className="mt-4"
+                  onClick={() =>
+                    toast({ title: "Próximamente", description: "Función de agregar dispositivo en desarrollo" })
+                  }
+                >
+                  Agregar dispositivo
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </main>
     </div>
   )
