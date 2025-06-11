@@ -45,11 +45,6 @@ export default function Login() {
     }
   }
 
-  const handleDemoLogin = () => {
-    setEmail("demo@findyourpet.com")
-    setPassword("demo123")
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
       {/* Elementos decorativos de fondo */}
@@ -104,7 +99,7 @@ export default function Login() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800">Comunidad Activa</h3>
-                <p className="text-gray-600 text-sm">Miles de usuarios ayudando a encontrar mascotas</p>
+                <p className="text-sm text-gray-600">Miles de usuarios ayudando a encontrar mascotas</p>
               </div>
             </div>
           </div>
@@ -214,25 +209,6 @@ export default function Login() {
                   )}
                 </Button>
               </form>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500">o</span>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleDemoLogin}
-                className="w-full h-12 border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-300"
-              >
-                <Zap className="w-5 h-5 mr-2 text-blue-500" />
-                Probar con cuenta demo
-              </Button>
 
               <div className="text-center space-y-4">
                 <Link

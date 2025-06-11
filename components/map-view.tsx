@@ -47,13 +47,32 @@ export default function MapView({
     }
 
     const initializeMap = () => {
-      if (!mapRef.current || !window.google?.maps) {
-        console.error("Google Maps not loaded or map container not found")
+      // Verificar que el contenedor existe y tiene dimensiones
+      if (!mapRef.current) {
+        console.error("Map container not found")
+        setError("Contenedor del mapa no encontrado")
+        setIsLoading(false)
+        return
+      }
+
+      // Verificar que Google Maps está disponible
+      if (!window.google?.maps) {
+        console.error("Google Maps not loaded")
+        setError("Google Maps no se ha cargado")
+        setIsLoading(false)
         return
       }
 
       try {
-        const mapInstance = new window.google.maps.Map(mapRef.current, {
+        console.log("Initializing Google Maps...")
+
+        // Asegurar que el contenedor tenga dimensiones
+        const container = mapRef.current
+        container.style.width = "100%"
+        container.style.height = height
+        container.style.minHeight = "300px"
+
+        const mapInstance = new window.google.maps.Map(container, {
           center: {
             lat: initialViewState.latitude,
             lng: initialViewState.longitude,
@@ -71,6 +90,7 @@ export default function MapView({
           ],
         })
 
+        console.log("Map initialized successfully")
         setMap(mapInstance)
         addMarkersToMap(mapInstance)
         setIsLoading(false)
@@ -85,15 +105,19 @@ export default function MapView({
     const loadGoogleMaps = () => {
       // Check if Google Maps is already loaded
       if (window.google?.maps) {
+        console.log("Google Maps already loaded")
         initializeMap()
         return
       }
 
       // Check if script is already loading
-      if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]')
+      if (existingScript) {
+        console.log("Google Maps script already exists, waiting for load...")
         // Wait for it to load
         const checkLoaded = setInterval(() => {
           if (window.google?.maps) {
+            console.log("Google Maps loaded via existing script")
             clearInterval(checkLoaded)
             initializeMap()
           }
@@ -102,6 +126,7 @@ export default function MapView({
         setTimeout(() => {
           clearInterval(checkLoaded)
           if (!window.google?.maps) {
+            console.error("Timeout waiting for Google Maps to load")
             setError("Timeout cargando Google Maps")
             setIsLoading(false)
           }
@@ -110,6 +135,7 @@ export default function MapView({
       }
 
       // Create and load the script
+      console.log("Loading Google Maps script...")
       const script = document.createElement("script")
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`
       script.async = true
@@ -129,9 +155,13 @@ export default function MapView({
       document.head.appendChild(script)
     }
 
-    loadGoogleMaps()
+    // Pequeño delay para asegurar que el DOM esté listo
+    const timer = setTimeout(() => {
+      loadGoogleMaps()
+    }, 100)
 
     return () => {
+      clearTimeout(timer)
       // Cleanup markers
       markersRef.current.forEach((marker) => {
         if (marker.setMap) {
@@ -140,10 +170,15 @@ export default function MapView({
       })
       markersRef.current = []
     }
-  }, [initialViewState])
+  }, [initialViewState, height])
 
   const addMarkersToMap = (mapInstance: any) => {
-    if (!mapInstance || !window.google?.maps) return
+    if (!mapInstance || !window.google?.maps) {
+      console.error("Cannot add markers: map or Google Maps not available")
+      return
+    }
+
+    console.log("Adding markers to map...")
 
     // Clear existing markers
     markersRef.current.forEach((marker) => {
@@ -214,6 +249,8 @@ export default function MapView({
 
       markersRef.current.push(marker)
     })
+
+    console.log(`Added ${markersRef.current.length} markers to map`)
   }
 
   // Update markers when petLocations change
@@ -257,7 +294,16 @@ export default function MapView({
 
   return (
     <div className="relative">
-      <div ref={mapRef} style={{ height }} className="w-full rounded-lg border" />
+      <div
+        ref={mapRef}
+        style={{
+          height,
+          width: "100%",
+          minHeight: "300px",
+        }}
+        className="w-full rounded-lg border"
+        id="google-map-container"
+      />
       {petLocations.length > 0 && (
         <div className="absolute top-2 left-2 bg-white rounded-lg shadow-md p-2 text-xs">
           <div className="flex items-center space-x-4">

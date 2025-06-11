@@ -22,22 +22,36 @@ import {
   TrendingUp,
   Clock,
   Award,
+  Phone,
+  Mail,
+  MessageCircle,
 } from "lucide-react"
 import { useAuthCheck } from "@/hooks/use-auth-check"
-import AlertSummary from "@/components/alert-summary"
 import MapView from "@/components/map-view"
 
 export default function Dashboard() {
   const router = useRouter()
   const { user, loading } = useAuthCheck()
-  const [greeting, setGreeting] = useState("")
+  const [userProfile, setUserProfile] = useState<any>(null)
 
   useEffect(() => {
-    const hour = new Date().getHours()
-    if (hour < 12) setGreeting("Buenos días")
-    else if (hour < 18) setGreeting("Buenas tardes")
-    else setGreeting("Buenas noches")
-  }, [])
+    const fetchUserProfile = async () => {
+      if (!user?.id) return
+
+      try {
+        const { createClient } = await import("@/lib/supabase/client")
+        const supabase = createClient()
+
+        const { data: profile } = await supabase.from("user_profiles").select("*").eq("user_id", user.id).single()
+
+        setUserProfile(profile)
+      } catch (error) {
+        console.error("Error fetching user profile:", error)
+      }
+    }
+
+    fetchUserProfile()
+  }, [user?.id])
 
   const [pets, setPets] = useState<any[]>([])
   const [stats, setStats] = useState({
@@ -72,11 +86,17 @@ export default function Dashboard() {
   const petLocations = pets.map((pet, index) => ({
     id: pet.id,
     name: pet.name,
-    latitude: -34.6037 + index * 0.001, // Temporary coordinates
+    latitude: -34.6037 + index * 0.001,
     longitude: -58.3816 + index * 0.001,
     timestamp: pet.updated_at || new Date().toISOString(),
     status: pet.is_lost ? ("lost" as const) : ("found" as const),
   }))
+
+  const handleSupportClick = () => {
+    const message = `Hola, necesito ayuda con FindYourPet. Mi usuario es: ${user?.email}`
+    const whatsappUrl = `https://wa.me/542804537189?text=${encodeURIComponent(message)}`
+    window.open(whatsappUrl, "_blank")
+  }
 
   if (loading) {
     return (
@@ -89,6 +109,8 @@ export default function Dashboard() {
     )
   }
 
+  const displayName = userProfile?.full_name || user?.email?.split("@")[0] || "Usuario"
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Header con gradiente */}
@@ -98,15 +120,15 @@ export default function Dashboard() {
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <Avatar className="h-12 w-12 ring-4 ring-white/20">
-                  <AvatarImage src="/placeholder.svg?height=48&width=48" />
+                  <AvatarImage src={userProfile?.avatar_url || "/placeholder.svg?height=48&width=48"} />
                   <AvatarFallback className="bg-white/20 text-white font-bold">
-                    {user?.email?.[0]?.toUpperCase() || "U"}
+                    {displayName[0]?.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-green-400 rounded-full border-2 border-white"></div>
               </div>
               <div>
-                <h1 className="text-2xl font-bold">{greeting}</h1>
+                <h1 className="text-2xl font-bold">Hola, {displayName}</h1>
                 <p className="text-blue-100">{user?.email || "Usuario"}</p>
               </div>
             </div>
@@ -176,8 +198,8 @@ export default function Dashboard() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm">Ayudas</p>
-                  <p className="text-2xl font-bold">{stats.communityHelps}</p>
+                  <p className="text-purple-100 text-sm">Reportes</p>
+                  <p className="text-2xl font-bold">{pets.filter((pet) => pet.is_lost).length}</p>
                 </div>
                 <Award className="h-8 w-8 text-purple-200" />
               </div>
@@ -238,57 +260,68 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid gap-4">
-              {pets.map((pet) => (
-                <div
-                  key={pet.id}
-                  className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="relative">
-                        <Avatar className="h-16 w-16 ring-4 ring-white shadow-lg">
-                          <AvatarImage src={pet.image_url || "/placeholder.svg"} />
-                          <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white font-bold">
-                            {pet.name[0]}
-                          </AvatarFallback>
-                        </Avatar>
-                        {!pet.is_lost && (
-                          <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
-                            <div className="h-2 w-2 bg-green-600 rounded-full animate-pulse"></div>
+              {pets.length > 0 ? (
+                pets.map((pet) => (
+                  <div
+                    key={pet.id}
+                    className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="relative">
+                          <Avatar className="h-16 w-16 ring-4 ring-white shadow-lg">
+                            <AvatarImage src={pet.image_url || "/placeholder.svg"} />
+                            <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white font-bold">
+                              {pet.name[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          {!pet.is_lost && (
+                            <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
+                              <div className="h-2 w-2 bg-green-600 rounded-full animate-pulse"></div>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-lg text-gray-800">{pet.name}</h3>
+                          <p className="text-gray-600">{pet.breed}</p>
+                          <div className="flex items-center space-x-2 mt-1">
+                            <Badge variant={!pet.is_lost ? "default" : "destructive"} className="text-xs">
+                              {!pet.is_lost ? "Seguro" : "Perdido"}
+                            </Badge>
+                            <span className="text-xs text-gray-500 flex items-center">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Reportado recientemente
+                            </span>
                           </div>
-                        )}
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-lg text-gray-800">{pet.name}</h3>
-                        <p className="text-gray-600">{pet.breed}</p>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <Badge variant={!pet.is_lost ? "default" : "destructive"} className="text-xs">
-                            {!pet.is_lost ? "Seguro" : "Perdido"}
-                          </Badge>
-                          <span className="text-xs text-gray-500 flex items-center">
-                            <Clock className="w-3 h-3 mr-1" />
-                            {pet.updated_at}
-                          </span>
+                      <div className="text-right space-y-2">
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline" className="hover:bg-blue-50">
+                            <MapPin className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" className="hover:bg-green-50">
+                            <Camera className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>
-                    <div className="text-right space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Zap className="w-4 h-4 text-yellow-500" />
-                        <span className="text-sm font-medium">{pet.battery_level}%</span>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline" className="hover:bg-blue-50">
-                          <MapPin className="w-4 h-4" />
-                        </Button>
-                        <Button size="sm" variant="outline" className="hover:bg-green-50">
-                          <Camera className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Heart className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">No tienes mascotas registradas</h3>
+                  <p className="text-gray-500 mb-4">Reporta tu primera mascota para comenzar</p>
+                  <Button
+                    onClick={() => router.push("/report")}
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                  >
+                    <PlusCircle className="w-4 h-4 mr-2" />
+                    Reportar Mascota
+                  </Button>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
@@ -322,9 +355,42 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Alertas */}
+          {/* Soporte y Acciones rápidas */}
           <div className="space-y-6">
-            <AlertSummary />
+            {/* Soporte */}
+            <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-t-lg">
+                <CardTitle className="flex items-center text-xl">
+                  <MessageCircle className="w-6 h-6 mr-2" />
+                  Soporte
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                <p className="text-gray-600 text-sm mb-4">¿Necesitas ayuda? Contáctanos ante cualquier duda</p>
+
+                <Button
+                  onClick={handleSupportClick}
+                  className="w-full justify-start bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white h-12"
+                >
+                  <Phone className="w-5 h-5 mr-3" />
+                  WhatsApp: +54 2804537189
+                </Button>
+
+                <Button
+                  onClick={() =>
+                    window.open(
+                      "mailto:cristiansorw@gmail.com?subject=Soporte FindYourPet&body=Hola, necesito ayuda con FindYourPet. Mi usuario es: " +
+                        user?.email,
+                      "_blank",
+                    )
+                  }
+                  className="w-full justify-start bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white h-12"
+                >
+                  <Mail className="w-5 h-5 mr-3" />
+                  cristiansorw@gmail.com
+                </Button>
+              </CardContent>
+            </Card>
 
             {/* Acciones rápidas adicionales */}
             <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
