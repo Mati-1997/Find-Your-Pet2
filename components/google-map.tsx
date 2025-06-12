@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import { MapPin } from "lucide-react"
-import { NEXT_PUBLIC_GOOGLE_MAPS_API_KEY } from "@/env"
 
 interface PetLocation {
   id: string
@@ -88,7 +87,8 @@ export default function GoogleMap({ petLocations, height = "400px", onMarkerClic
 
   // Función para cargar el script de Google Maps
   const loadGoogleMapsScript = useCallback(() => {
-    const apiKey = NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    // Usar directamente process.env en lugar de importar de @/env
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
     if (!apiKey) {
       console.error("Google Maps API key not found")
