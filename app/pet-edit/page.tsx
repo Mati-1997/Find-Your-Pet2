@@ -118,11 +118,19 @@ export default function EditPetPage() {
       const fileName = `${petId}-${Date.now()}.${fileExt}`
       const filePath = `pets/${fileName}`
 
-      const { error: uploadError } = await supabase.storage.from("pet-images").upload(filePath, file)
+      // Use upsert to overwrite if file exists
+      const { error: uploadError } = await supabase.storage.from("pet-images").upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: true,
+      })
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error("Upload error:", uploadError)
+        throw uploadError
+      }
 
       const { data } = supabase.storage.from("pet-images").getPublicUrl(filePath)
+      console.log("Uploaded image URL:", data.publicUrl)
 
       setFormData((prev) => ({ ...prev, image_url: data.publicUrl }))
 
@@ -134,7 +142,7 @@ export default function EditPetPage() {
       console.error("Error uploading image:", error)
       toast({
         title: "Error",
-        description: "No se pudo subir la imagen",
+        description: "No se pudo subir la imagen. Error: " + error.message,
         variant: "destructive",
       })
     } finally {

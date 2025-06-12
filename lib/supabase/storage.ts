@@ -8,12 +8,20 @@ export class StorageService {
     const fileName = `${petId}-${Date.now()}.${fileExt}`
     const filePath = `pets/${fileName}`
 
-    const { error: uploadError } = await this.supabase.storage.from("pet-images").upload(filePath, file)
+    // Make sure the bucket exists and is properly configured
+    const { error: uploadError } = await this.supabase.storage.from("pet-images").upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: true, // Use upsert to overwrite if file exists
+    })
 
-    if (uploadError) throw uploadError
+    if (uploadError) {
+      console.error("Upload error:", uploadError)
+      throw uploadError
+    }
 
     const { data } = this.supabase.storage.from("pet-images").getPublicUrl(filePath)
 
+    console.log("Uploaded image URL:", data.publicUrl)
     return data.publicUrl
   }
 
@@ -22,15 +30,20 @@ export class StorageService {
     const fileName = `${userId}-avatar.${fileExt}`
     const filePath = `avatars/${fileName}`
 
-    // Delete existing avatar if it exists
-    await this.supabase.storage.from("user-avatars").remove([filePath])
+    // Use upsert to overwrite existing files
+    const { error: uploadError } = await this.supabase.storage.from("user-avatars").upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: true,
+    })
 
-    const { error: uploadError } = await this.supabase.storage.from("user-avatars").upload(filePath, file)
-
-    if (uploadError) throw uploadError
+    if (uploadError) {
+      console.error("Avatar upload error:", uploadError)
+      throw uploadError
+    }
 
     const { data } = this.supabase.storage.from("user-avatars").getPublicUrl(filePath)
 
+    console.log("Uploaded avatar URL:", data.publicUrl)
     return data.publicUrl
   }
 

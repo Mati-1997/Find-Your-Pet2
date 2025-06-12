@@ -129,18 +129,25 @@ export default function EditProfilePage() {
     try {
       const supabase = createClient()
 
-      // Upload to storage
+      // Upload to storage with a more reliable path
       const fileExt = file.name.split(".").pop()
-      const fileName = `${user?.id}/avatar.${fileExt}`
+      const fileName = `${user?.id}-${Date.now()}.${fileExt}`
+      const filePath = `avatars/${fileName}`
 
-      const { error: uploadError } = await supabase.storage
-        .from("user-avatars")
-        .upload(fileName, file, { upsert: true })
+      // Use upsert to overwrite if file exists
+      const { error: uploadError } = await supabase.storage.from("user-avatars").upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: true,
+      })
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error("Upload error:", uploadError)
+        throw uploadError
+      }
 
       // Get public URL
-      const { data } = supabase.storage.from("user-avatars").getPublicUrl(fileName)
+      const { data } = supabase.storage.from("user-avatars").getPublicUrl(filePath)
+      console.log("Uploaded avatar URL:", data.publicUrl)
 
       // Update both auth metadata and users table
       const { error: authError } = await supabase.auth.updateUser({
@@ -169,7 +176,7 @@ export default function EditProfilePage() {
       console.error("Error uploading avatar:", error)
       toast({
         title: "Error",
-        description: "No se pudo subir la imagen. Intenta nuevamente.",
+        description: "No se pudo subir la imagen. Error: " + error.message,
         variant: "destructive",
       })
     } finally {

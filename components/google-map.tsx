@@ -25,93 +25,75 @@ export default function GoogleMap({
   height = "400px",
   width = "100%",
   onMarkerClick,
-  initialCenter = { lat: 19.4326, lng: -99.1332 },
-  initialZoom = 12,
+  initialCenter = { lat: -34.626766, lng: -58.398107 },
+  initialZoom = 14,
 }: GoogleMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const [isLoaded, setIsLoaded] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Simulación de mapa por ahora - Versión simplificada que no usa Google Maps API
     if (mapRef.current) {
-      try {
-        console.log("Rendering simplified map...")
+      // Generate random points for pets around the center location
+      const petMarkers = petLocations
+        .map((pet, index) => {
+          // Generate random offsets for latitude and longitude (within ~1km)
+          const latOffset = (Math.random() - 0.5) * 0.01
+          const lngOffset = (Math.random() - 0.5) * 0.01
 
-        // Asegurar que el contenedor tenga dimensiones
-        mapRef.current.style.width = width
-        mapRef.current.style.height = height
+          // Calculate marker position
+          const markerTop = 20 + Math.random() * 60 // Random position between 20% and 80%
+          const markerLeft = 20 + Math.random() * 60 // Random position between 20% and 80%
 
-        mapRef.current.innerHTML = `
-          <div style="
-            width: 100%; 
-            height: 100%; 
-            background: linear-gradient(45deg, #e3f2fd 0%, #bbdefb 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            position: relative;
-            overflow: hidden;
-          ">
-            <div style="
-              background: white;
-              padding: 16px;
-              border-radius: 8px;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-              text-align: center;
-              max-width: 300px;
-              z-index: 10;
-            ">
-              <div style="font-size: 24px; margin-bottom: 8px;">🗺️</div>
-              <h3 style="margin: 0 0 8px 0; color: #1976d2;">Mapa de Mascotas</h3>
-              <p style="margin: 0; color: #666; font-size: 14px;">
-                ${petLocations.length} mascota${petLocations.length !== 1 ? "s" : ""} encontrada${petLocations.length !== 1 ? "s" : ""}
-              </p>
-              ${
-                petLocations.length > 0
-                  ? `
-                <div style="margin-top: 12px; font-size: 12px; color: #888;">
-                  Ubicaciones: ${petLocations.map((pet) => pet.name).join(", ")}
-                </div>
-              `
-                  : ""
-              }
-            </div>
-            
-            ${petLocations
-              .map(
-                (pet, index) => `
-              <div 
-                style="
-                  position: absolute;
-                  top: ${20 + index * 15}%;
-                  left: ${30 + index * 20}%;
-                  background: ${pet.status === "lost" ? "#f44336" : "#4CAF50"};
-                  color: white;
-                  padding: 4px 8px;
-                  border-radius: 12px;
-                  font-size: 12px;
-                  cursor: pointer;
-                  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                  transform: translate(-50%, -50%);
-                  z-index: 5;
-                "
-                class="pet-marker"
-                data-pet-id="${pet.id}"
-              >
-                📍 ${pet.name}
-              </div>
-            `,
-              )
-              .join("")}
+          return `
+          <div 
+            style="
+              position: absolute;
+              top: ${markerTop}%;
+              left: ${markerLeft}%;
+              background: ${pet.status === "lost" ? "#f44336" : "#4CAF50"};
+              color: white;
+              padding: 4px 8px;
+              border-radius: 12px;
+              font-size: 12px;
+              cursor: pointer;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+              transform: translate(-50%, -50%);
+              z-index: 5;
+            "
+            class="pet-marker"
+            data-pet-id="${pet.id}"
+          >
+            📍 ${pet.name}
           </div>
         `
+        })
+        .join("")
 
-        // Agregar event listeners a los marcadores
-        const markers = mapRef.current.querySelectorAll(".pet-marker")
+      // Set the iframe with the Google Maps embed
+      mapRef.current.innerHTML = `
+        <div style="position: relative; width: 100%; height: 100%;">
+          <iframe 
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3655.0200303601187!2d-58.39810672373697!3d-34.62676635871669!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95bccb18b13e51bd%3A0x8774a1856072a6c1!2sPasco%20%26%20Avenida%20Pav%C3%B3n%2C%20C1256%20Cdad.%20Aut%C3%B3noma%20de%20Buenos%20Aires!5e1!3m2!1ses-419!2sar!4v1749696134164!5m2!1ses-419!2sar" 
+            width="100%" 
+            height="100%" 
+            style="border:0;" 
+            allowfullscreen="" 
+            loading="lazy" 
+            referrerpolicy="no-referrer-when-downgrade"
+          ></iframe>
+          
+          <!-- Pet markers overlay -->
+          <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+            ${petMarkers}
+          </div>
+        </div>
+      `
+
+      // Add event listeners to the markers
+      setTimeout(() => {
+        const markers = mapRef.current?.querySelectorAll(".pet-marker") || []
         markers.forEach((marker) => {
+          marker.style.pointerEvents = "auto"
           marker.addEventListener("click", (e) => {
             const petId = (e.currentTarget as HTMLElement).dataset.petId
             const pet = petLocations.find((p) => p.id === petId)
@@ -120,51 +102,22 @@ export default function GoogleMap({
             }
           })
         })
+      }, 500)
 
-        setIsLoaded(true)
-        setError(null)
-      } catch (err) {
-        console.error("Error rendering simplified map:", err)
-        setError("Error al renderizar el mapa")
-        setIsLoaded(false)
-      }
+      setIsLoaded(true)
     }
-  }, [petLocations, height, width, onMarkerClick])
-
-  if (error) {
-    return (
-      <div style={{ width, height }} className="flex items-center justify-center bg-gray-100 rounded-lg border">
-        <div className="text-center p-4">
-          <div className="text-4xl mb-2">🗺️</div>
-          <h3 className="font-medium text-gray-900 mb-1">Mapa no disponible</h3>
-          <p className="text-sm text-gray-600">{error}</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!isLoaded) {
-    return (
-      <div style={{ width, height }} className="flex items-center justify-center bg-gray-100 rounded-lg border">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-          <p className="text-gray-600 text-sm">Cargando mapa...</p>
-        </div>
-      </div>
-    )
-  }
+  }, [petLocations, height, width, onMarkerClick, initialCenter, initialZoom])
 
   return (
     <div
       ref={mapRef}
-      id="google-map-container"
       style={{
         width,
         height,
         border: "1px solid #ddd",
         borderRadius: "8px",
+        overflow: "hidden",
       }}
-      className="google-map-container"
     />
   )
 }

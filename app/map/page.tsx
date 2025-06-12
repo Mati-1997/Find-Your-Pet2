@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, MapPin, Filter, Layers, Navigation, RefreshCw } from "lucide-react"
+import { ArrowLeft, Filter, Layers, Navigation, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -286,31 +286,16 @@ export default function MapPage() {
       <main className="container px-4 pb-6">
         <Card>
           <CardContent className="p-0">
-            {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
-              <MapView
-                petLocations={filteredPets}
-                height="500px"
-                onMarkerClick={handlePetClick}
-                initialViewState={{
-                  latitude: userLocation.lat,
-                  longitude: userLocation.lng,
-                  zoom: 13,
-                }}
-              />
-            ) : (
-              <div className="h-96 bg-gray-100 rounded-lg flex items-center justify-center">
-                <div className="text-center p-4">
-                  <MapPin className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                  <h3 className="font-medium text-gray-900 mb-2">Mapa no disponible</h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Configure la API key de Google Maps para ver el mapa interactivo
-                  </p>
-                  <div className="text-xs text-gray-500">
-                    <p>Variable requerida: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</p>
-                  </div>
-                </div>
-              </div>
-            )}
+            <MapView
+              petLocations={filteredPets}
+              height="500px"
+              onMarkerClick={handlePetClick}
+              initialViewState={{
+                latitude: userLocation.lat,
+                longitude: userLocation.lng,
+                zoom: 13,
+              }}
+            />
           </CardContent>
         </Card>
 
