@@ -19,6 +19,7 @@ export default function EditProfilePage() {
   const { toast } = useToast()
   const { user, loading, isAuthenticated } = useAuthCheck()
   const [saving, setSaving] = useState(false)
+  const [userProfile, setUserProfile] = useState<any>(null)
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
@@ -36,16 +37,32 @@ export default function EditProfilePage() {
         })
         router.push("/login")
       } else if (user) {
-        // Load existing user data
-        setFormData({
-          full_name: user.user_metadata?.full_name || "",
-          phone: user.user_metadata?.phone || "",
-          location: user.user_metadata?.location || "Buenos Aires, Argentina",
-          bio: user.user_metadata?.bio || "",
-        })
+        loadUserProfile()
       }
     }
   }, [loading, isAuthenticated, user, router])
+
+  const loadUserProfile = async () => {
+    try {
+      const supabase = createClient()
+      const { data: profile, error } = await supabase.from("users").select("*").eq("id", user?.id).single()
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error loading profile:", error)
+        return
+      }
+
+      setUserProfile(profile)
+      setFormData({
+        full_name: profile?.full_name || user?.user_metadata?.full_name || "",
+        phone: profile?.phone || user?.user_metadata?.phone || "",
+        location: user?.user_metadata?.location || "Buenos Aires, Argentina",
+        bio: user?.user_metadata?.bio || "",
+      })
+    } catch (error) {
+      console.error("Error loading user profile:", error)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,7 +71,8 @@ export default function EditProfilePage() {
     try {
       const supabase = createClient()
 
-      const { error } = await supabase.auth.updateUser({
+      // Actualizar auth metadata
+      const { error: authError } = await supabase.auth.updateUser({
         data: {
           full_name: formData.full_name,
           phone: formData.phone,
@@ -63,16 +81,24 @@ export default function EditProfilePage() {
         },
       })
 
-      if (error) {
-        throw error
-      }
+      if (authError) throw authError
+
+      // Actualizar tabla users
+      const { error: profileError } = await supabase.from("users").upsert({
+        id: user?.id,
+        email: user?.email,
+        full_name: formData.full_name,
+        phone: formData.phone,
+        avatar_url: userProfile?.avatar_url,
+      })
+
+      if (profileError) throw profileError
 
       toast({
         title: "Perfil actualizado",
         description: "Los cambios se han guardado correctamente",
       })
 
-      // Redirigir al dashboard en lugar del perfil
       router.push("/dashboard")
     } catch (error: any) {
       console.error("Error updating profile:", error)
@@ -105,32 +131,40 @@ export default function EditProfilePage() {
 
       // Upload to storage
       const fileExt = file.name.split(".").pop()
-      const fileName = `${user?.id}-avatar.${fileExt}`
-      const filePath = `avatars/${fileName}`
+      const fileName = `${user?.id}/avatar.${fileExt}`
 
       const { error: uploadError } = await supabase.storage
         .from("user-avatars")
-        .upload(filePath, file, { upsert: true })
+        .upload(fileName, file, { upsert: true })
 
       if (uploadError) throw uploadError
 
       // Get public URL
-      const { data } = supabase.storage.from("user-avatars").getPublicUrl(filePath)
+      const { data } = supabase.storage.from("user-avatars").getPublicUrl(fileName)
 
-      // Update user metadata
-      const { error: updateError } = await supabase.auth.updateUser({
+      // Update both auth metadata and users table
+      const { error: authError } = await supabase.auth.updateUser({
         data: { avatar_url: data.publicUrl },
       })
 
-      if (updateError) throw updateError
+      if (authError) throw authError
+
+      const { error: profileError } = await supabase.from("users").upsert({
+        id: user?.id,
+        email: user?.email,
+        full_name: formData.full_name,
+        phone: formData.phone,
+        avatar_url: data.publicUrl,
+      })
+
+      if (profileError) throw profileError
+
+      setUserProfile({ ...userProfile, avatar_url: data.publicUrl })
 
       toast({
         title: "Foto actualizada",
         description: "Tu foto de perfil se ha actualizado correctamente",
       })
-
-      // Refresh the page to show new avatar
-      window.location.reload()
     } catch (error: any) {
       console.error("Error uploading avatar:", error)
       toast({
@@ -144,7 +178,6 @@ export default function EditProfilePage() {
   }
 
   const handleGoBack = () => {
-    // Verificar si hay un referrer, si no, ir al dashboard
     if (document.referrer && document.referrer.includes(window.location.origin)) {
       router.back()
     } else {
@@ -212,15 +245,18 @@ export default function EditProfilePage() {
                 <div className="flex items-center space-x-6">
                   <div className="relative">
                     <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
-                      {user?.user_metadata?.avatar_url ? (
+                      {userProfile?.avatar_url ? (
                         <img
-                          src={user.user_metadata.avatar_url || "/placeholder.svg"}
+                          src={userProfile.avatar_url || "/placeholder.svg"}
                           alt="Avatar"
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none"
+                            e.currentTarget.nextElementSibling?.classList.remove("hidden")
+                          }}
                         />
-                      ) : (
-                        <User className="w-12 h-12 text-white" />
-                      )}
+                      ) : null}
+                      <User className={`w-12 h-12 text-white ${userProfile?.avatar_url ? "hidden" : ""}`} />
                     </div>
                     <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-1 shadow-lg">
                       <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
