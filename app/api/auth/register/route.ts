@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 
 export async function POST(request: NextRequest) {
-  // Agregar headers CORS
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
 
     // Verificar variables de entorno
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       console.error("Missing Supabase environment variables")
       return NextResponse.json(
         { error: "Configuración del servidor incompleta" },
@@ -35,21 +35,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Importar dinámicamente para evitar problemas de SSR
-    const { createClient } = await import("@supabase/supabase-js")
+    // Usar service role key para operaciones administrativas
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    console.log("Attempting to register user:", email)
 
     // Registrar usuario en Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: {
-          full_name: full_name || "",
-          phone: phone || "",
-        },
+      user_metadata: {
+        full_name: full_name || "",
+        phone: phone || "",
       },
+      email_confirm: false, // Auto-confirm for development
     })
 
     if (authError) {
@@ -61,24 +60,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Error al crear el usuario" }, { status: 400, headers: corsHeaders })
     }
 
-    // Crear perfil de usuario en la tabla users
-    const { error: profileError } = await supabase.from("users").insert({
-      id: authData.user.id,
-      email,
-      full_name: full_name || null,
-      phone: phone || null,
-    })
+    console.log("User created in auth:", authData.user.id)
+
+    // Crear perfil de usuario en la tabla users (el trigger debería hacer esto automáticamente)
+    const { data: profileData, error: profileError } = await supabase
+      .from("users")
+      .upsert({
+        id: authData.user.id,
+        email,
+        full_name: full_name || null,
+        phone: phone || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
 
     if (profileError) {
       console.error("Profile error:", profileError)
-      // Si hay error creando el perfil, no fallar completamente
-      // El usuario ya fue creado en Auth
+      // No fallar completamente si hay error en el perfil
+    } else {
+      console.log("Profile created:", profileData)
     }
 
     return NextResponse.json(
       {
         message: "Usuario creado exitosamente",
         user: authData.user,
+        profile: profileData,
       },
       { headers: corsHeaders },
     )
@@ -88,7 +96,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Manejar preflight requests
 export async function OPTIONS(request: NextRequest) {
   return new NextResponse(null, {
     status: 200,

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -9,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase/client-only"
 import Link from "next/link"
 
 export default function RegisterPage() {
@@ -58,50 +56,43 @@ export default function RegisterPage() {
     }
 
     try {
-      // Obtener la URL actual para el redirect
-      const currentUrl = window.location.origin
+      console.log("Sending registration request...")
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.full_name,
-            phone: formData.phone || null,
-          },
-          emailRedirectTo: `${currentUrl}/auth/callback`,
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.full_name,
+          phone: formData.phone,
+        }),
       })
 
-      if (signUpError) {
-        throw signUpError
+      const data = await response.json()
+      console.log("Registration response:", data)
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al registrar usuario")
       }
 
-      if (data.user) {
-        // Crear perfil del usuario
-        const { error: profileError } = await supabase.from("profiles").upsert({
-          id: data.user.id,
-          full_name: formData.full_name,
-          phone: formData.phone || null,
-          email: formData.email,
-          updated_at: new Date().toISOString(),
-        })
+      setSuccess("¡Registro exitoso! Puedes iniciar sesión ahora.")
 
-        if (profileError) {
-          console.error("Error creating profile:", profileError)
-        }
+      // Limpiar formulario
+      setFormData({
+        full_name: "",
+        email: "",
+        phone: "",
+        password: "",
+        confirmPassword: "",
+      })
 
-        setSuccess("¡Registro exitoso! Por favor revisa tu email para confirmar tu cuenta.")
-
-        // Limpiar formulario
-        setFormData({
-          full_name: "",
-          email: "",
-          phone: "",
-          password: "",
-          confirmPassword: "",
-        })
-      }
+      // Redirigir al login después de 2 segundos
+      setTimeout(() => {
+        router.push("/login")
+      }, 2000)
     } catch (error: any) {
       console.error("Registration error:", error)
       setError(error.message || "Error al registrar usuario")
@@ -132,7 +123,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="full_name">Nombre completo</Label>
+              <Label htmlFor="full_name">Nombre completo *</Label>
               <Input
                 id="full_name"
                 name="full_name"
@@ -141,11 +132,12 @@ export default function RegisterPage() {
                 value={formData.full_name}
                 onChange={handleChange}
                 className="mt-1"
+                placeholder="Tu nombre completo"
               />
             </div>
 
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 name="email"
@@ -154,6 +146,7 @@ export default function RegisterPage() {
                 value={formData.email}
                 onChange={handleChange}
                 className="mt-1"
+                placeholder="tu@email.com"
               />
             </div>
 
@@ -166,11 +159,12 @@ export default function RegisterPage() {
                 value={formData.phone}
                 onChange={handleChange}
                 className="mt-1"
+                placeholder="+54 11 1234-5678"
               />
             </div>
 
             <div>
-              <Label htmlFor="password">Contraseña</Label>
+              <Label htmlFor="password">Contraseña *</Label>
               <Input
                 id="password"
                 name="password"
@@ -179,11 +173,12 @@ export default function RegisterPage() {
                 value={formData.password}
                 onChange={handleChange}
                 className="mt-1"
+                placeholder="Mínimo 6 caracteres"
               />
             </div>
 
             <div>
-              <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+              <Label htmlFor="confirmPassword">Confirmar contraseña *</Label>
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -192,6 +187,7 @@ export default function RegisterPage() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 className="mt-1"
+                placeholder="Repite tu contraseña"
               />
             </div>
 
