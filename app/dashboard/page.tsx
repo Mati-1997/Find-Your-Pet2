@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
 import { useAuthCheck } from "@/hooks/use-auth-check"
-import MapView from "@/components/map-view"
 import Link from "next/link"
 
 interface Pet {
@@ -40,7 +39,6 @@ export default function DashboardPage() {
     alertsToday: 0,
     totalReports: 0,
   })
-  const [isMapLoaded, setIsMapLoaded] = useState(false)
 
   useEffect(() => {
     if (!loading && user) {
@@ -82,11 +80,6 @@ export default function DashboardPage() {
           totalReports: petsData.filter((pet) => pet.is_lost).length,
         })
       }
-
-      // Indicar que los datos están cargados para el mapa
-      setTimeout(() => {
-        setIsMapLoaded(true)
-      }, 500)
     } catch (error) {
       console.error("Error in loadUserData:", error)
     }
@@ -145,74 +138,62 @@ export default function DashboardPage() {
 
       {/* Stats Cards */}
       <div className="container mx-auto px-4 -mt-6">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
-            <CardContent className="p-3 sm:p-4 flex flex-col items-center">
-              <Heart className="h-5 w-5 mb-1 sm:mb-2" />
+        <div className="grid grid-cols-4 gap-4">
+          <Card className="bg-blue-500 text-white shadow-lg">
+            <CardContent className="p-4 flex flex-col items-center">
+              <Heart className="h-6 w-6 mb-2" />
               <p className="text-xs font-medium">Mis Mascotas</p>
-              <p className="text-xl sm:text-2xl font-bold">{stats.totalPets}</p>
+              <p className="text-2xl font-bold">{stats.totalPets}</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg">
-            <CardContent className="p-3 sm:p-4 flex flex-col items-center">
-              <MapPin className="h-5 w-5 mb-1 sm:mb-2" />
+          <Card className="bg-green-500 text-white shadow-lg">
+            <CardContent className="p-4 flex flex-col items-center">
+              <MapPin className="h-6 w-6 mb-2" />
               <p className="text-xs font-medium">Activas</p>
-              <p className="text-xl sm:text-2xl font-bold">{stats.activePets}</p>
+              <p className="text-2xl font-bold">{stats.activePets}</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg">
-            <CardContent className="p-3 sm:p-4 flex flex-col items-center">
-              <Bell className="h-5 w-5 mb-1 sm:mb-2" />
+          <Card className="bg-orange-500 text-white shadow-lg">
+            <CardContent className="p-4 flex flex-col items-center">
+              <Bell className="h-6 w-6 mb-2" />
               <p className="text-xs font-medium">Alertas Hoy</p>
-              <p className="text-xl sm:text-2xl font-bold">{stats.alertsToday}</p>
+              <p className="text-2xl font-bold">{stats.alertsToday}</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg">
-            <CardContent className="p-3 sm:p-4 flex flex-col items-center">
-              <Award className="h-5 w-5 mb-1 sm:mb-2" />
+          <Card className="bg-purple-500 text-white shadow-lg">
+            <CardContent className="p-4 flex flex-col items-center">
+              <Award className="h-6 w-6 mb-2" />
               <p className="text-xs font-medium">Reportes</p>
-              <p className="text-xl sm:text-2xl font-bold">{stats.totalReports}</p>
+              <p className="text-2xl font-bold">{stats.totalReports}</p>
             </CardContent>
           </Card>
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="container mx-auto px-4 mt-4 sm:mt-6">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
-          <Button
-            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white h-12"
-            onClick={() => router.push("/report")}
-          >
-            <PlusCircle className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="text-sm">Reportar</span>
+      <div className="container mx-auto px-4 mt-6">
+        <div className="grid grid-cols-4 gap-4">
+          <Button className="bg-red-500 hover:bg-red-600 text-white h-14" onClick={() => router.push("/report")}>
+            <PlusCircle className="h-5 w-5 mr-2" />
+            Reportar
           </Button>
 
-          <Button
-            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white h-12"
-            onClick={() => router.push("/search")}
-          >
-            <Search className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="text-sm">Buscar</span>
+          <Button className="bg-blue-500 hover:bg-blue-600 text-white h-14" onClick={() => router.push("/search")}>
+            <Search className="h-5 w-5 mr-2" />
+            Buscar
           </Button>
 
-          <Button
-            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white h-12"
-            onClick={() => router.push("/map")}
-          >
-            <Map className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="text-sm">GPS</span>
+          <Button className="bg-green-500 hover:bg-green-600 text-white h-14" onClick={() => router.push("/map")}>
+            <Map className="h-5 w-5 mr-2" />
+            GPS
           </Button>
 
-          <Button
-            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white h-12"
-            onClick={() => router.push("/profile")}
-          >
-            <User className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="text-sm">Perfil</span>
+          <Button className="bg-purple-500 hover:bg-purple-600 text-white h-14" onClick={() => router.push("/profile")}>
+            <User className="h-5 w-5 mr-2" />
+            Perfil
           </Button>
         </div>
       </div>
@@ -220,7 +201,7 @@ export default function DashboardPage() {
       {/* Pets Section */}
       <div className="container mx-auto px-4 mt-6">
         <Card className="overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 p-4">
+          <div className="bg-indigo-500 p-4">
             <div className="flex items-center text-white">
               <Heart className="h-5 w-5 mr-2" />
               <h2 className="text-lg font-semibold">Mis Mascotas</h2>
@@ -286,9 +267,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Map Section */}
-      <div className="container mx-auto px-4 mt-4 sm:mt-6">
+      <div className="container mx-auto px-4 mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
-          <div className="bg-gradient-to-r from-green-500 to-green-600 p-4">
+          <div className="bg-green-500 p-4">
             <div className="flex items-center text-white">
               <MapPin className="h-5 w-5 mr-2" />
               <h2 className="text-lg font-semibold">Ubicaciones en Tiempo Real</h2>
@@ -296,55 +277,31 @@ export default function DashboardPage() {
           </div>
 
           <CardContent className="p-0">
-            {isMapLoaded && pets.length > 0 ? (
-              <div id="map-container" className="h-64 w-full">
-                <MapView
-                  petLocations={pets.map((pet) => ({
-                    id: pet.id,
-                    name: pet.name,
-                    latitude: -34.6037 + (Math.random() - 0.5) * 0.05,
-                    longitude: -58.3816 + (Math.random() - 0.5) * 0.05,
-                    timestamp: pet.created_at,
-                    status: pet.is_lost ? "lost" : "found",
-                    imageUrl: pet.image_url,
-                  }))}
-                  height="256px"
-                  onMarkerClick={(pet) => router.push(`/pet-detail?id=${pet.id}`)}
-                />
+            <div className="py-8 flex flex-col items-center justify-center text-center p-4">
+              <MapPin className="h-12 w-12 text-gray-300 mb-3" />
+              <h3 className="text-base font-medium text-gray-900">Mapa no disponible</h3>
+              <p className="mt-1 text-sm text-gray-500">Contenedor del mapa no encontrado</p>
+              <div className="mt-4 text-xs text-gray-500 max-w-xs">
+                <p className="font-medium mb-1">Para habilitar el mapa:</p>
+                <ol className="list-decimal list-inside text-left space-y-1">
+                  <li>Obtén una API key de Google Maps</li>
+                  <li>Habilita Maps JavaScript API</li>
+                  <li>Configura NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</li>
+                  <li>Activa la facturación en Google Cloud</li>
+                </ol>
               </div>
-            ) : (
-              <div className="py-8 flex flex-col items-center justify-center text-center p-4">
-                <MapPin className="h-12 w-12 text-gray-300 mb-3" />
-                <h3 className="text-base font-medium text-gray-900">Mapa no disponible</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {pets.length === 0
-                    ? "Registra mascotas para ver sus ubicaciones"
-                    : "Contenedor del mapa no encontrado"}
-                </p>
-                <div className="mt-4 text-xs text-gray-500 max-w-xs">
-                  <p className="font-medium mb-1">Para habilitar el mapa:</p>
-                  <ol className="list-decimal list-inside text-left space-y-1">
-                    <li>Obtén una API key de Google Maps</li>
-                    <li>Habilita Maps JavaScript API</li>
-                    <li>Configura NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</li>
-                    <li>Activa la facturación en Google Cloud</li>
-                  </ol>
-                </div>
-                <div className="mt-4">
-                  <Button variant="outline" size="sm" onClick={() => router.push("/map")} className="text-sm">
-                    Ver Mapa Completo
-                  </Button>
-                </div>
+              <div className="mt-4">
+                <Button variant="outline" size="sm" onClick={() => router.push("/map")} className="text-sm">
+                  Ver Mapa Completo
+                </Button>
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Support Section */}
-      <div className="container mx-auto px-4 mt-6 mb-8">
+        {/* Support Section */}
         <Card>
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4">
+          <div className="bg-blue-500 p-4">
             <div className="flex items-center text-white">
               <MessageSquareHeart className="h-5 w-5 mr-2" />
               <h2 className="text-lg font-semibold">Soporte</h2>
@@ -399,7 +356,7 @@ export default function DashboardPage() {
       {/* Quick Actions */}
       <div className="container mx-auto px-4 mt-6 mb-8">
         <Card>
-          <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-4">
+          <div className="bg-orange-500 p-4">
             <div className="flex items-center text-white">
               <PlusCircle className="h-5 w-5 mr-2" />
               <h2 className="text-lg font-semibold">Acciones Rápidas</h2>
@@ -450,39 +407,6 @@ export default function DashboardPage() {
                   Control de Visitas
                 </Button>
               </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Community Activity */}
-      <div className="container mx-auto px-4 mt-4 sm:mt-6 mb-6 sm:mb-8">
-        <Card>
-          <div className="bg-gradient-to-r from-blue-400 to-blue-500 p-4">
-            <div className="flex items-center text-white">
-              <Award className="h-5 w-5 mr-2" />
-              <h2 className="text-lg font-semibold">Actividad de la Comunidad</h2>
-            </div>
-          </div>
-
-          <CardContent className="p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-              <div>
-                <p className="text-xl sm:text-2xl font-bold text-blue-600">24</p>
-                <p className="text-xs text-gray-500">Mascotas encontradas hoy</p>
-              </div>
-              <div>
-                <p className="text-xl sm:text-2xl font-bold text-green-600">156</p>
-                <p className="text-xs text-gray-500">Usuarios activos</p>
-              </div>
-              <div>
-                <p className="text-xl sm:text-2xl font-bold text-purple-600">89</p>
-                <p className="text-xs text-gray-500">Reportes esta semana</p>
-              </div>
-              <div>
-                <p className="text-xl sm:text-2xl font-bold text-orange-600">342</p>
-                <p className="text-xs text-gray-500">Ayudas totales</p>
-              </div>
             </div>
           </CardContent>
         </Card>
