@@ -20,7 +20,7 @@ interface GoogleMapProps {
   initialZoom?: number
 }
 
-// Store fixed positions for pets globally - this will persist across re-renders
+// Store fixed positions for pets globally
 const globalGoogleMapPetPositions = new Map<string, { top: number; left: number }>()
 
 export default function GoogleMap({
@@ -32,68 +32,60 @@ export default function GoogleMap({
   initialZoom = 14,
 }: GoogleMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
-  const [isLoaded, setIsLoaded] = useState(false)
   const [petMarkersHtml, setPetMarkersHtml] = useState("")
 
   // Generate fixed positions for pets only once
   useEffect(() => {
-    let markersChanged = false
-
     petLocations.forEach((pet) => {
       if (!globalGoogleMapPetPositions.has(pet.id)) {
-        // Generate a fixed random position for this pet only if it doesn't exist
-        const top = 25 + Math.random() * 50 // Random position between 25% and 75%
-        const left = 25 + Math.random() * 50 // Random position between 25% and 75%
+        const top = 30 + Math.random() * 40
+        const left = 30 + Math.random() * 40
         globalGoogleMapPetPositions.set(pet.id, { top, left })
-        markersChanged = true
       }
     })
 
-    // Only regenerate HTML if positions changed
-    if (markersChanged || petMarkersHtml === "") {
-      const markers = petLocations
-        .map((pet) => {
-          const position = globalGoogleMapPetPositions.get(pet.id)!
+    const markers = petLocations
+      .map((pet) => {
+        const position = globalGoogleMapPetPositions.get(pet.id)!
+        return `
+        <div 
+          style="
+            position: absolute;
+            top: ${position.top}%;
+            left: ${position.left}%;
+            background: ${pet.status === "lost" ? "#ef4444" : "#22c55e"};
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            border: 2px solid white;
+            font-weight: 600;
+            min-width: 50px;
+            text-align: center;
+            transition: all 0.2s ease;
+            pointer-events: auto;
+          "
+          class="pet-marker"
+          data-pet-id="${pet.id}"
+          onmouseover="this.style.transform='translate(-50%, -50%) scale(1.15)'"
+          onmouseout="this.style.transform='translate(-50%, -50%) scale(1)'"
+          title="${pet.name} - ${pet.breed} (${pet.status === "lost" ? "Perdido" : "Encontrado"})"
+        >
+          📍 ${pet.name}
+        </div>
+      `
+      })
+      .join("")
 
-          return `
-          <div 
-            style="
-              position: absolute;
-              top: ${position.top}%;
-              left: ${position.left}%;
-              background: ${pet.status === "lost" ? "#f44336" : "#4CAF50"};
-              color: white;
-              padding: 6px 10px;
-              border-radius: 15px;
-              font-size: 11px;
-              cursor: pointer;
-              box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-              transform: translate(-50%, -50%);
-              z-index: 5;
-              border: 2px solid white;
-              font-weight: 500;
-              min-width: 60px;
-              text-align: center;
-              transition: all 0.2s ease;
-            "
-            class="pet-marker"
-            data-pet-id="${pet.id}"
-            onmouseover="this.style.transform='translate(-50%, -50%) scale(1.1)'"
-            onmouseout="this.style.transform='translate(-50%, -50%) scale(1)'"
-          >
-            📍 ${pet.name}
-          </div>
-        `
-        })
-        .join("")
-
-      setPetMarkersHtml(markers)
-    }
+    setPetMarkersHtml(markers)
   }, [petLocations])
 
   useEffect(() => {
     if (mapRef.current) {
-      // Set the iframe with the new Google Maps embed
       mapRef.current.innerHTML = `
         <div style="position: relative; width: 100%; height: 100%;">
           <iframe 
@@ -106,40 +98,37 @@ export default function GoogleMap({
             referrerpolicy="no-referrer-when-downgrade"
           ></iframe>
           
-          <!-- Pet markers overlay with fixed positions -->
           <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
             ${petMarkersHtml}
           </div>
           
-          <!-- Legend -->
           <div style="
             position: absolute;
-            bottom: 10px;
-            left: 10px;
+            bottom: 15px;
+            left: 15px;
             background: rgba(255, 255, 255, 0.95);
-            padding: 8px 12px;
+            padding: 10px 14px;
             border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             font-size: 12px;
-            z-index: 10;
+            z-index: 1000;
+            font-family: system-ui, -apple-system, sans-serif;
           ">
-            <div style="display: flex; align-items: center; margin-bottom: 4px;">
-              <div style="width: 12px; height: 12px; background: #f44336; border-radius: 50%; margin-right: 6px;"></div>
-              <span>Perdidos (${petLocations.filter((p) => p.status === "lost").length})</span>
+            <div style="display: flex; align-items: center; margin-bottom: 6px;">
+              <div style="width: 14px; height: 14px; background: #ef4444; border-radius: 50%; margin-right: 8px;"></div>
+              <span style="font-weight: 500;">Perdidos (${petLocations.filter((p) => p.status === "lost").length})</span>
             </div>
             <div style="display: flex; align-items: center;">
-              <div style="width: 12px; height: 12px; background: #4CAF50; border-radius: 50%; margin-right: 6px;"></div>
-              <span>Encontrados (${petLocations.filter((p) => p.status === "found").length})</span>
+              <div style="width: 14px; height: 14px; background: #22c55e; border-radius: 50%; margin-right: 8px;"></div>
+              <span style="font-weight: 500;">Encontrados (${petLocations.filter((p) => p.status === "found").length})</span>
             </div>
           </div>
         </div>
       `
 
-      // Add event listeners to the markers
       setTimeout(() => {
         const markers = mapRef.current?.querySelectorAll(".pet-marker") || []
         markers.forEach((marker) => {
-          marker.style.pointerEvents = "auto"
           marker.addEventListener("click", (e) => {
             const petId = (e.currentTarget as HTMLElement).dataset.petId
             const pet = petLocations.find((p) => p.id === petId)
@@ -148,11 +137,9 @@ export default function GoogleMap({
             }
           })
         })
-      }, 500)
-
-      setIsLoaded(true)
+      }, 100)
     }
-  }, [petMarkersHtml, height, width, onMarkerClick, initialCenter, initialZoom])
+  }, [petMarkersHtml, height, width, onMarkerClick])
 
   return (
     <div
@@ -160,7 +147,7 @@ export default function GoogleMap({
       style={{
         width,
         height,
-        border: "1px solid #ddd",
+        border: "1px solid #e5e7eb",
         borderRadius: "8px",
         overflow: "hidden",
       }}

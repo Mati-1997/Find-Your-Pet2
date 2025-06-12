@@ -156,7 +156,7 @@ export default function GoogleMapsLocal({
   return (
     <>
       <Script
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD79Oyprpt1hevFiPcpNJjc22qHViGTo7I&callback=initMap"
+        src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyBFw0Qbyq9zTFTd-tUY6dO_BcqzKOqiOEw"}&callback=initMap`}
         onLoad={() => {
           window.initMap = initializeMap
           if (window.google) {
