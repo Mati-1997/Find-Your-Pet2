@@ -23,8 +23,8 @@ interface MapViewProps {
   }
 }
 
-// Store fixed positions for pets to prevent them from moving
-const petPositions = new Map<string, { top: number; left: number }>()
+// Store fixed positions for pets globally - this will persist across re-renders
+const globalPetPositions = new Map<string, { top: number; left: number }>()
 
 export default function MapView({
   petLocations,
@@ -35,24 +35,27 @@ export default function MapView({
 }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [petMarkersHtml, setPetMarkersHtml] = useState("")
 
-  // Generate fixed positions for pets
-  const getFixedPetPosition = (petId: string) => {
-    if (!petPositions.has(petId)) {
-      // Generate a fixed random position for this pet
-      const top = 20 + Math.random() * 60 // Random position between 20% and 80%
-      const left = 20 + Math.random() * 60 // Random position between 20% and 80%
-      petPositions.set(petId, { top, left })
-    }
-    return petPositions.get(petId)!
-  }
-
+  // Generate fixed positions for pets only once
   useEffect(() => {
-    if (mapRef.current) {
-      // Generate markers with fixed positions
-      const petMarkers = petLocations
+    let markersChanged = false
+
+    petLocations.forEach((pet) => {
+      if (!globalPetPositions.has(pet.id)) {
+        // Generate a fixed random position for this pet only if it doesn't exist
+        const top = 25 + Math.random() * 50 // Random position between 25% and 75%
+        const left = 25 + Math.random() * 50 // Random position between 25% and 75%
+        globalPetPositions.set(pet.id, { top, left })
+        markersChanged = true
+      }
+    })
+
+    // Only regenerate HTML if positions changed
+    if (markersChanged || petMarkersHtml === "") {
+      const markers = petLocations
         .map((pet) => {
-          const position = getFixedPetPosition(pet.id)
+          const position = globalPetPositions.get(pet.id)!
 
           return `
           <div 
@@ -86,6 +89,12 @@ export default function MapView({
         })
         .join("")
 
+      setPetMarkersHtml(markers)
+    }
+  }, [petLocations])
+
+  useEffect(() => {
+    if (mapRef.current) {
       // Set the iframe with the new Google Maps embed
       mapRef.current.innerHTML = `
         <div style="position: relative; width: 100%; height: 100%;">
@@ -101,7 +110,7 @@ export default function MapView({
           
           <!-- Pet markers overlay with fixed positions -->
           <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
-            ${petMarkers}
+            ${petMarkersHtml}
           </div>
           
           <!-- Legend -->
@@ -145,7 +154,7 @@ export default function MapView({
 
       setIsLoaded(true)
     }
-  }, [petLocations, height, width, onMarkerClick])
+  }, [petMarkersHtml, height, width, onMarkerClick])
 
   return (
     <div

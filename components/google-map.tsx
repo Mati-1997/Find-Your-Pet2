@@ -20,8 +20,8 @@ interface GoogleMapProps {
   initialZoom?: number
 }
 
-// Store fixed positions for pets to prevent them from moving
-const petPositionsGoogleMap = new Map<string, { top: number; left: number }>()
+// Store fixed positions for pets globally - this will persist across re-renders
+const globalGoogleMapPetPositions = new Map<string, { top: number; left: number }>()
 
 export default function GoogleMap({
   petLocations,
@@ -33,24 +33,27 @@ export default function GoogleMap({
 }: GoogleMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [petMarkersHtml, setPetMarkersHtml] = useState("")
 
-  // Generate fixed positions for pets
-  const getFixedPetPosition = (petId: string) => {
-    if (!petPositionsGoogleMap.has(petId)) {
-      // Generate a fixed random position for this pet
-      const top = 20 + Math.random() * 60 // Random position between 20% and 80%
-      const left = 20 + Math.random() * 60 // Random position between 20% and 80%
-      petPositionsGoogleMap.set(petId, { top, left })
-    }
-    return petPositionsGoogleMap.get(petId)!
-  }
-
+  // Generate fixed positions for pets only once
   useEffect(() => {
-    if (mapRef.current) {
-      // Generate markers with fixed positions
-      const petMarkers = petLocations
+    let markersChanged = false
+
+    petLocations.forEach((pet) => {
+      if (!globalGoogleMapPetPositions.has(pet.id)) {
+        // Generate a fixed random position for this pet only if it doesn't exist
+        const top = 25 + Math.random() * 50 // Random position between 25% and 75%
+        const left = 25 + Math.random() * 50 // Random position between 25% and 75%
+        globalGoogleMapPetPositions.set(pet.id, { top, left })
+        markersChanged = true
+      }
+    })
+
+    // Only regenerate HTML if positions changed
+    if (markersChanged || petMarkersHtml === "") {
+      const markers = petLocations
         .map((pet) => {
-          const position = getFixedPetPosition(pet.id)
+          const position = globalGoogleMapPetPositions.get(pet.id)!
 
           return `
           <div 
@@ -84,6 +87,12 @@ export default function GoogleMap({
         })
         .join("")
 
+      setPetMarkersHtml(markers)
+    }
+  }, [petLocations])
+
+  useEffect(() => {
+    if (mapRef.current) {
       // Set the iframe with the new Google Maps embed
       mapRef.current.innerHTML = `
         <div style="position: relative; width: 100%; height: 100%;">
@@ -99,7 +108,7 @@ export default function GoogleMap({
           
           <!-- Pet markers overlay with fixed positions -->
           <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
-            ${petMarkers}
+            ${petMarkersHtml}
           </div>
           
           <!-- Legend -->
@@ -143,7 +152,7 @@ export default function GoogleMap({
 
       setIsLoaded(true)
     }
-  }, [petLocations, height, width, onMarkerClick, initialCenter, initialZoom])
+  }, [petMarkersHtml, height, width, onMarkerClick, initialCenter, initialZoom])
 
   return (
     <div
