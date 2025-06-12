@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
 import { useAuthCheck } from "@/hooks/use-auth-check"
-import GoogleMap from "@/components/google-map"
+import MapView from "@/components/map-view"
 import Link from "next/link"
 
 interface Pet {
@@ -145,74 +145,74 @@ export default function DashboardPage() {
 
       {/* Stats Cards */}
       <div className="container mx-auto px-4 -mt-6">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
           <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
-            <CardContent className="p-4 flex flex-col items-center">
-              <Heart className="h-6 w-6 mb-2" />
+            <CardContent className="p-3 sm:p-4 flex flex-col items-center">
+              <Heart className="h-5 w-5 mb-1 sm:mb-2" />
               <p className="text-xs font-medium">Mis Mascotas</p>
-              <p className="text-2xl font-bold">{stats.totalPets}</p>
+              <p className="text-xl sm:text-2xl font-bold">{stats.totalPets}</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg">
-            <CardContent className="p-4 flex flex-col items-center">
-              <MapPin className="h-6 w-6 mb-2" />
+            <CardContent className="p-3 sm:p-4 flex flex-col items-center">
+              <MapPin className="h-5 w-5 mb-1 sm:mb-2" />
               <p className="text-xs font-medium">Activas</p>
-              <p className="text-2xl font-bold">{stats.activePets}</p>
+              <p className="text-xl sm:text-2xl font-bold">{stats.activePets}</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg">
-            <CardContent className="p-4 flex flex-col items-center">
-              <Bell className="h-6 w-6 mb-2" />
+            <CardContent className="p-3 sm:p-4 flex flex-col items-center">
+              <Bell className="h-5 w-5 mb-1 sm:mb-2" />
               <p className="text-xs font-medium">Alertas Hoy</p>
-              <p className="text-2xl font-bold">{stats.alertsToday}</p>
+              <p className="text-xl sm:text-2xl font-bold">{stats.alertsToday}</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg">
-            <CardContent className="p-4 flex flex-col items-center">
-              <Award className="h-6 w-6 mb-2" />
+            <CardContent className="p-3 sm:p-4 flex flex-col items-center">
+              <Award className="h-5 w-5 mb-1 sm:mb-2" />
               <p className="text-xs font-medium">Reportes</p>
-              <p className="text-2xl font-bold">{stats.totalReports}</p>
+              <p className="text-xl sm:text-2xl font-bold">{stats.totalReports}</p>
             </CardContent>
           </Card>
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="container mx-auto px-4 mt-6">
-        <div className="grid grid-cols-4 gap-4">
+      <div className="container mx-auto px-4 mt-4 sm:mt-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
           <Button
-            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white h-14"
+            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white h-12"
             onClick={() => router.push("/report")}
           >
-            <PlusCircle className="h-5 w-5 mr-2" />
-            Reportar
+            <PlusCircle className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="text-sm">Reportar</span>
           </Button>
 
           <Button
-            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white h-14"
+            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white h-12"
             onClick={() => router.push("/search")}
           >
-            <Search className="h-5 w-5 mr-2" />
-            Buscar
+            <Search className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="text-sm">Buscar</span>
           </Button>
 
           <Button
-            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white h-14"
+            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white h-12"
             onClick={() => router.push("/map")}
           >
-            <Map className="h-5 w-5 mr-2" />
-            GPS
+            <Map className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="text-sm">GPS</span>
           </Button>
 
           <Button
-            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white h-14"
+            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white h-12"
             onClick={() => router.push("/profile")}
           >
-            <User className="h-5 w-5 mr-2" />
-            Perfil
+            <User className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="text-sm">Perfil</span>
           </Button>
         </div>
       </div>
@@ -286,7 +286,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Map Section */}
-      <div className="container mx-auto px-4 mt-6">
+      <div className="container mx-auto px-4 mt-4 sm:mt-6">
         <Card>
           <div className="bg-gradient-to-r from-green-500 to-green-600 p-4">
             <div className="flex items-center text-white">
@@ -298,16 +298,18 @@ export default function DashboardPage() {
           <CardContent className="p-0">
             {isMapLoaded && pets.length > 0 ? (
               <div id="map-container" className="h-64 w-full">
-                <GoogleMap
+                <MapView
                   petLocations={pets.map((pet) => ({
                     id: pet.id,
                     name: pet.name,
                     latitude: -34.6037 + (Math.random() - 0.5) * 0.05,
                     longitude: -58.3816 + (Math.random() - 0.5) * 0.05,
+                    timestamp: pet.created_at,
                     status: pet.is_lost ? "lost" : "found",
-                    breed: pet.breed,
+                    imageUrl: pet.image_url,
                   }))}
                   height="256px"
+                  onMarkerClick={(pet) => router.push(`/pet-detail?id=${pet.id}`)}
                 />
               </div>
             ) : (
@@ -454,7 +456,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Community Activity */}
-      <div className="container mx-auto px-4 mt-6 mb-8">
+      <div className="container mx-auto px-4 mt-4 sm:mt-6 mb-6 sm:mb-8">
         <Card>
           <div className="bg-gradient-to-r from-blue-400 to-blue-500 p-4">
             <div className="flex items-center text-white">
@@ -464,21 +466,21 @@ export default function DashboardPage() {
           </div>
 
           <CardContent className="p-4">
-            <div className="grid grid-cols-4 gap-4 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
               <div>
-                <p className="text-2xl font-bold text-blue-600">24</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">24</p>
                 <p className="text-xs text-gray-500">Mascotas encontradas hoy</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-green-600">156</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">156</p>
                 <p className="text-xs text-gray-500">Usuarios activos</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-purple-600">89</p>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600">89</p>
                 <p className="text-xs text-gray-500">Reportes esta semana</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-orange-600">342</p>
+                <p className="text-xl sm:text-2xl font-bold text-orange-600">342</p>
                 <p className="text-xs text-gray-500">Ayudas totales</p>
               </div>
             </div>
