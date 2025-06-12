@@ -25,6 +25,7 @@ import {
   Bell,
   PlusCircle,
   AlertTriangle,
+  Home,
 } from "lucide-react"
 import { useAuthCheck } from "@/hooks/use-auth-check"
 import { createClient } from "@/lib/supabase/client"
@@ -223,6 +224,13 @@ export default function Profile() {
     }
   }
 
+  const getDisplayName = () => {
+    if (user?.user_metadata?.full_name) {
+      return user.user_metadata.full_name.split(" ")[0]
+    }
+    return user?.email?.split("@")[0] || "Usuario"
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
@@ -243,13 +251,23 @@ export default function Profile() {
             <Button variant="ghost" onClick={() => router.push("/dashboard")} className="text-white hover:bg-white/20">
               ← Volver al inicio
             </Button>
-            <Button
-              onClick={() => router.push("/profile/edit")}
-              className="bg-white/20 hover:bg-white/30 text-white border-white/30"
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              Editar Perfil
-            </Button>
+            <div className="flex space-x-2">
+              <Button
+                onClick={() => router.push("/dashboard")}
+                variant="ghost"
+                className="text-white hover:bg-white/20"
+              >
+                <Home className="w-5 h-5 mr-2" />
+                Inicio
+              </Button>
+              <Button
+                onClick={() => router.push("/profile/edit")}
+                className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Editar Perfil
+              </Button>
+            </div>
           </div>
 
           <div className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
@@ -274,9 +292,7 @@ export default function Profile() {
 
             <div className="text-center md:text-left flex-1">
               <div className="flex items-center justify-center md:justify-start space-x-3 mb-2">
-                <h1 className="text-3xl font-bold">
-                  {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Usuario"}
-                </h1>
+                <h1 className="text-3xl font-bold">{getDisplayName()}</h1>
                 {userPoints > 500 && <Badge className="bg-green-500 hover:bg-green-600">Verificado</Badge>}
               </div>
               <p className="text-blue-100 text-lg mb-2">{getUserLevel()}</p>

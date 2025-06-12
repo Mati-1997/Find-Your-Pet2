@@ -86,6 +86,63 @@ export default function EditProfilePage() {
     }
   }
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "La imagen debe ser menor a 2MB",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSaving(true)
+    try {
+      const supabase = createClient()
+
+      // Upload to storage
+      const fileExt = file.name.split(".").pop()
+      const fileName = `${user?.id}-avatar.${fileExt}`
+      const filePath = `avatars/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from("user-avatars")
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data } = supabase.storage.from("user-avatars").getPublicUrl(filePath)
+
+      // Update user metadata
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { avatar_url: data.publicUrl },
+      })
+
+      if (updateError) throw updateError
+
+      toast({
+        title: "Foto actualizada",
+        description: "Tu foto de perfil se ha actualizado correctamente",
+      })
+
+      // Refresh the page to show new avatar
+      window.location.reload()
+    } catch (error: any) {
+      console.error("Error uploading avatar:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo subir la imagen. Intenta nuevamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleGoBack = () => {
     // Verificar si hay un referrer, si no, ir al dashboard
     if (document.referrer && document.referrer.includes(window.location.origin)) {
@@ -154,8 +211,16 @@ export default function EditProfilePage() {
               <CardContent className="p-6">
                 <div className="flex items-center space-x-6">
                   <div className="relative">
-                    <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                      <User className="w-12 h-12 text-white" />
+                    <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+                      {user?.user_metadata?.avatar_url ? (
+                        <img
+                          src={user.user_metadata.avatar_url || "/placeholder.svg"}
+                          alt="Avatar"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-12 h-12 text-white" />
+                      )}
                     </div>
                     <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-1 shadow-lg">
                       <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
@@ -164,8 +229,22 @@ export default function EditProfilePage() {
                     </div>
                   </div>
                   <div className="flex-1">
-                    <Button type="button" variant="outline" size="sm" className="mb-2">
-                      Cambiar foto
+                    <input
+                      type="file"
+                      id="avatar-upload"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarUpload}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mb-2"
+                      onClick={() => document.getElementById("avatar-upload")?.click()}
+                      disabled={saving}
+                    >
+                      {saving ? "Subiendo..." : "Cambiar foto"}
                     </Button>
                     <p className="text-sm text-gray-500">JPG, PNG o GIF. Máximo 2MB.</p>
                     <p className="text-xs text-gray-400 mt-1">

@@ -125,7 +125,20 @@ export default function Dashboard() {
     )
   }
 
-  const displayName = userProfile?.full_name || user?.email?.split("@")[0] || "Usuario"
+  const getFirstName = () => {
+    if (userProfile?.full_name) {
+      return userProfile.full_name.split(" ")[0]
+    }
+    if (user?.user_metadata?.full_name) {
+      return user.user_metadata.full_name.split(" ")[0]
+    }
+    if (user?.email) {
+      return user.email.split("@")[0]
+    }
+    return "Usuario"
+  }
+
+  const displayName = getFirstName()
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -291,9 +304,13 @@ export default function Dashboard() {
                       <div className="flex items-center space-x-4">
                         <div className="relative">
                           <Avatar className="h-16 w-16 ring-4 ring-white shadow-lg">
-                            <AvatarImage src={pet.image_url || "/placeholder.svg"} />
+                            <AvatarImage
+                              src={pet.image_url || "/placeholder.svg?height=64&width=64"}
+                              alt={pet.name}
+                              className="object-cover"
+                            />
                             <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white font-bold">
-                              {pet.name[0]}
+                              {pet.name?.[0]?.toUpperCase() || "P"}
                             </AvatarFallback>
                           </Avatar>
                           {!pet.is_lost && (
@@ -304,14 +321,14 @@ export default function Dashboard() {
                         </div>
                         <div>
                           <h3 className="font-bold text-lg text-gray-800">{pet.name}</h3>
-                          <p className="text-gray-600">{pet.breed || pet.species}</p>
+                          <p className="text-gray-600">{pet.breed || pet.species || "Mascota"}</p>
                           <div className="flex items-center space-x-2 mt-1">
                             <Badge variant={!pet.is_lost ? "default" : "destructive"} className="text-xs">
                               {!pet.is_lost ? "Seguro" : "Perdido"}
                             </Badge>
                             <span className="text-xs text-gray-500 flex items-center">
                               <Clock className="w-3 h-3 mr-1" />
-                              Reportado recientemente
+                              {new Date(pet.created_at).toLocaleDateString("es-AR")}
                             </span>
                           </div>
                         </div>
@@ -335,7 +352,7 @@ export default function Dashboard() {
                             className="hover:bg-green-50"
                             onClick={(e) => {
                               e.stopPropagation()
-                              router.push(`/pet-detail?id=${pet.id}`)
+                              router.push(`/pet-edit?id=${pet.id}`)
                             }}
                           >
                             <Camera className="w-4 h-4" />
