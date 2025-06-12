@@ -30,14 +30,15 @@ export default function GoogleMap({ petLocations, height = "400px", onMarkerClic
 
     if (!apiKey) {
       console.warn("Google Maps API key not found")
-      setError("Google Maps API key no configurada")
+      setError("API key de Google Maps no configurada")
       setIsLoading(false)
       return
     }
 
     const initializeMap = () => {
+      // Usar mapRef.current en lugar de document.getElementById
       if (!mapRef.current) {
-        console.error("Map container not found")
+        console.error("Map container ref not found")
         setError("Contenedor del mapa no encontrado")
         setIsLoading(false)
         return
@@ -51,14 +52,10 @@ export default function GoogleMap({ petLocations, height = "400px", onMarkerClic
       }
 
       try {
-        console.log("Initializing Google Maps...")
+        console.log("Initializing Google Maps with ref...")
 
-        const container = mapRef.current
-        container.style.width = "100%"
-        container.style.height = height
-        container.style.minHeight = "300px"
-
-        const mapInstance = new window.google.maps.Map(container, {
+        // Usar mapRef.current directamente
+        const mapInstance = new window.google.maps.Map(mapRef.current, {
           center: {
             lat: -34.6037,
             lng: -58.3816,
@@ -119,13 +116,17 @@ export default function GoogleMap({ petLocations, height = "400px", onMarkerClic
 
       console.log("Loading Google Maps script...")
       const script = document.createElement("script")
+      // Remover el callback=initMap como recomienda Gemini
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`
       script.async = true
       script.defer = true
 
       script.onload = () => {
         console.log("Google Maps script loaded successfully")
-        initializeMap()
+        // Pequeño delay para asegurar que todo esté listo
+        setTimeout(() => {
+          initializeMap()
+        }, 100)
       }
 
       script.onerror = (error) => {
@@ -137,6 +138,7 @@ export default function GoogleMap({ petLocations, height = "400px", onMarkerClic
       document.head.appendChild(script)
     }
 
+    // Delay para asegurar que el componente esté montado
     const timer = setTimeout(() => {
       loadGoogleMaps()
     }, 100)
@@ -150,7 +152,14 @@ export default function GoogleMap({ petLocations, height = "400px", onMarkerClic
       })
       markersRef.current = []
     }
-  }, [height])
+  }, []) // Solo ejecutar una vez al montar
+
+  // Efecto separado para actualizar marcadores cuando cambien las mascotas
+  useEffect(() => {
+    if (map && !isLoading && !error) {
+      addMarkersToMap(map)
+    }
+  }, [petLocations, map, isLoading, error])
 
   const addMarkersToMap = (mapInstance: any) => {
     if (!mapInstance || !window.google?.maps) {
@@ -160,6 +169,7 @@ export default function GoogleMap({ petLocations, height = "400px", onMarkerClic
 
     console.log("Adding markers to map...")
 
+    // Limpiar marcadores existentes
     markersRef.current.forEach((marker) => {
       if (marker.setMap) {
         marker.setMap(null)
@@ -167,6 +177,7 @@ export default function GoogleMap({ petLocations, height = "400px", onMarkerClic
     })
     markersRef.current = []
 
+    // Marcador de ubicación del usuario
     const userMarker = new window.google.maps.Marker({
       position: {
         lat: -34.6037,
@@ -186,6 +197,7 @@ export default function GoogleMap({ petLocations, height = "400px", onMarkerClic
 
     markersRef.current.push(userMarker)
 
+    // Marcadores de mascotas
     petLocations.forEach((pet) => {
       const marker = new window.google.maps.Marker({
         position: { lat: pet.latitude, lng: pet.longitude },
@@ -230,12 +242,6 @@ export default function GoogleMap({ petLocations, height = "400px", onMarkerClic
     console.log(`Added ${markersRef.current.length} markers to map`)
   }
 
-  useEffect(() => {
-    if (map && !isLoading && !error) {
-      addMarkersToMap(map)
-    }
-  }, [petLocations, map, isLoading, error])
-
   if (isLoading) {
     return (
       <div style={{ height }} className="flex items-center justify-center bg-gray-100 rounded-lg border">
@@ -271,14 +277,13 @@ export default function GoogleMap({ petLocations, height = "400px", onMarkerClic
   return (
     <div className="relative">
       <div
-        ref={mapRef}
+        ref={mapRef} // Usar ref en lugar de id
         style={{
           height,
           width: "100%",
           minHeight: "300px",
         }}
         className="w-full rounded-lg border"
-        id="google-map-container"
       />
       {petLocations.length > 0 && (
         <div className="absolute top-2 left-2 bg-white rounded-lg shadow-md p-2 text-xs">

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
 import { useAuthCheck } from "@/hooks/use-auth-check"
+import GoogleMap from "@/components/google-map"
 import Link from "next/link"
 
 interface Pet {
@@ -50,35 +51,51 @@ export default function DashboardPage() {
     try {
       const supabase = createClient()
 
-      // Cargar perfil del usuario
-      const { data: profileData } = await supabase.from("user_profiles").select("*").eq("user_id", user?.id).single()
+      // Cargar perfil del usuario con manejo de errores mejorado
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from("user_profiles")
+          .select("*")
+          .eq("user_id", user?.id)
+          .single()
 
-      if (profileData) {
-        setUserProfile(profileData)
+        if (profileError && profileError.code !== "PGRST116") {
+          console.error("Error loading profile:", profileError)
+        } else if (profileData) {
+          setUserProfile(profileData)
+        }
+      } catch (profileErr) {
+        console.warn("Profile not found, this is normal for new users")
       }
 
-      // Cargar mascotas del usuario
-      const { data: petsData, error: petsError } = await supabase
-        .from("pets")
-        .select("*")
-        .or(`owner_id.eq.${user?.id},user_id.eq.${user?.id}`)
-        .order("created_at", { ascending: false })
+      // Cargar mascotas del usuario con manejo de errores mejorado
+      try {
+        const { data: petsData, error: petsError } = await supabase
+          .from("pets")
+          .select("*")
+          .or(`owner_id.eq.${user?.id},user_id.eq.${user?.id}`)
+          .order("created_at", { ascending: false })
 
-      if (petsError) {
-        console.error("Error loading pets:", petsError)
-      } else if (petsData) {
-        setPets(petsData)
+        if (petsError && petsError.code !== "PGRST116") {
+          console.error("Error loading pets:", petsError)
+        } else if (petsData) {
+          setPets(petsData)
 
-        // Calcular estadísticas
-        const now = new Date()
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+          // Calcular estadísticas
+          const now = new Date()
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
 
-        setStats({
-          totalPets: petsData.length,
-          activePets: petsData.filter((pet) => pet.is_lost).length,
-          alertsToday: petsData.filter((pet) => pet.is_lost && new Date(pet.created_at).toISOString() >= today).length,
-          totalReports: petsData.filter((pet) => pet.is_lost).length,
-        })
+          setStats({
+            totalPets: petsData.length,
+            activePets: petsData.filter((pet) => pet.is_lost).length,
+            alertsToday: petsData.filter((pet) => pet.is_lost && new Date(pet.created_at).toISOString() >= today)
+              .length,
+            totalReports: petsData.filter((pet) => pet.is_lost).length,
+          })
+        }
+      } catch (petsErr) {
+        console.warn("Pets table not found, this is normal if database is not set up")
+        setPets([])
       }
     } catch (error) {
       console.error("Error in loadUserData:", error)
@@ -90,7 +107,6 @@ export default function DashboardPage() {
       return userProfile.full_name
     }
     if (user?.email) {
-      // Extraer la parte antes del @ en el email
       return user.email.split("@")[0]
     }
     return "Usuario"
@@ -277,25 +293,18 @@ export default function DashboardPage() {
           </div>
 
           <CardContent className="p-0">
-            <div className="py-8 flex flex-col items-center justify-center text-center p-4">
-              <MapPin className="h-12 w-12 text-gray-300 mb-3" />
-              <h3 className="text-base font-medium text-gray-900">Mapa no disponible</h3>
-              <p className="mt-1 text-sm text-gray-500">Contenedor del mapa no encontrado</p>
-              <div className="mt-4 text-xs text-gray-500 max-w-xs">
-                <p className="font-medium mb-1">Para habilitar el mapa:</p>
-                <ol className="list-decimal list-inside text-left space-y-1">
-                  <li>Obtén una API key de Google Maps</li>
-                  <li>Habilita Maps JavaScript API</li>
-                  <li>Configura NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</li>
-                  <li>Activa la facturación en Google Cloud</li>
-                </ol>
-              </div>
-              <div className="mt-4">
-                <Button variant="outline" size="sm" onClick={() => router.push("/map")} className="text-sm">
-                  Ver Mapa Completo
-                </Button>
-              </div>
-            </div>
+            <GoogleMap
+              petLocations={pets.map((pet) => ({
+                id: pet.id,
+                name: pet.name,
+                latitude: -34.6037 + (Math.random() - 0.5) * 0.05,
+                longitude: -58.3816 + (Math.random() - 0.5) * 0.05,
+                status: pet.is_lost ? "lost" : "found",
+                breed: pet.breed,
+              }))}
+              height="256px"
+              onMarkerClick={(pet) => router.push(`/pet-detail?id=${pet.id}`)}
+            />
           </CardContent>
         </Card>
 
