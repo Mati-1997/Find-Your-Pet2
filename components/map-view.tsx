@@ -32,233 +32,21 @@ export default function MapView({
 }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [map, setMap] = useState<any>(null)
-  const markersRef = useRef<any[]>([])
 
   useEffect(() => {
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-
-    if (!apiKey) {
-      console.warn("Google Maps API key not found")
-      setError("Google Maps API key no configurada")
-      setIsLoading(false)
-      return
-    }
-
-    const initializeMap = () => {
-      // Verificar que el contenedor existe y tiene dimensiones
-      if (!mapRef.current) {
-        console.error("Map container not found")
-        setError("Contenedor del mapa no encontrado")
-        setIsLoading(false)
-        return
-      }
-
-      // Verificar que Google Maps está disponible
-      if (!window.google?.maps) {
-        console.error("Google Maps not loaded")
-        setError("Google Maps no se ha cargado")
-        setIsLoading(false)
-        return
-      }
-
-      try {
-        console.log("Initializing Google Maps...")
-
-        // Asegurar que el contenedor tenga dimensiones
-        const container = mapRef.current
-        container.style.width = "100%"
-        container.style.height = height
-        container.style.minHeight = "300px"
-
-        const mapInstance = new window.google.maps.Map(container, {
-          center: {
-            lat: initialViewState.latitude,
-            lng: initialViewState.longitude,
-          },
-          zoom: initialViewState.zoom,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-          styles: [
-            {
-              featureType: "poi",
-              elementType: "labels",
-              stylers: [{ visibility: "off" }],
-            },
-          ],
-        })
-
-        console.log("Map initialized successfully")
-        setMap(mapInstance)
-        addMarkersToMap(mapInstance)
-        setIsLoading(false)
-        setError(null)
-      } catch (err) {
-        console.error("Error initializing map:", err)
-        setError("Error al inicializar el mapa")
-        setIsLoading(false)
-      }
-    }
-
-    const loadGoogleMaps = () => {
-      // Check if Google Maps is already loaded
-      if (window.google?.maps) {
-        console.log("Google Maps already loaded")
-        initializeMap()
-        return
-      }
-
-      // Check if script is already loading
-      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]')
-      if (existingScript) {
-        console.log("Google Maps script already exists, waiting for load...")
-        // Wait for it to load
-        const checkLoaded = setInterval(() => {
-          if (window.google?.maps) {
-            console.log("Google Maps loaded via existing script")
-            clearInterval(checkLoaded)
-            initializeMap()
-          }
-        }, 100)
-
-        setTimeout(() => {
-          clearInterval(checkLoaded)
-          if (!window.google?.maps) {
-            console.error("Timeout waiting for Google Maps to load")
-            setError("Timeout cargando Google Maps")
-            setIsLoading(false)
-          }
-        }, 10000)
-        return
-      }
-
-      // Create and load the script
-      console.log("Loading Google Maps script...")
-      const script = document.createElement("script")
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`
-      script.async = true
-      script.defer = true
-
-      script.onload = () => {
-        console.log("Google Maps script loaded successfully")
-        initializeMap()
-      }
-
-      script.onerror = (error) => {
-        console.error("Error loading Google Maps script:", error)
-        setError("Error al cargar Google Maps API")
-        setIsLoading(false)
-      }
-
-      document.head.appendChild(script)
-    }
-
-    // Pequeño delay para asegurar que el DOM esté listo
+    // Simular carga del mapa
     const timer = setTimeout(() => {
-      loadGoogleMaps()
-    }, 100)
+      setIsLoading(false)
+    }, 1000)
 
-    return () => {
-      clearTimeout(timer)
-      // Cleanup markers
-      markersRef.current.forEach((marker) => {
-        if (marker.setMap) {
-          marker.setMap(null)
-        }
-      })
-      markersRef.current = []
+    return () => clearTimeout(timer)
+  }, [])
+
+  const handleMarkerClick = (pet: PetLocation) => {
+    if (onMarkerClick) {
+      onMarkerClick(pet)
     }
-  }, [initialViewState, height])
-
-  const addMarkersToMap = (mapInstance: any) => {
-    if (!mapInstance || !window.google?.maps) {
-      console.error("Cannot add markers: map or Google Maps not available")
-      return
-    }
-
-    console.log("Adding markers to map...")
-
-    // Clear existing markers
-    markersRef.current.forEach((marker) => {
-      if (marker.setMap) {
-        marker.setMap(null)
-      }
-    })
-    markersRef.current = []
-
-    // Add user location marker
-    const userMarker = new window.google.maps.Marker({
-      position: {
-        lat: initialViewState.latitude,
-        lng: initialViewState.longitude,
-      },
-      map: mapInstance,
-      title: "Tu ubicación",
-      icon: {
-        path: window.google.maps.SymbolPath.CIRCLE,
-        scale: 8,
-        fillColor: "#4285F4",
-        fillOpacity: 1,
-        strokeColor: "#ffffff",
-        strokeWeight: 2,
-      },
-    })
-
-    markersRef.current.push(userMarker)
-
-    // Add pet markers
-    petLocations.forEach((pet) => {
-      const marker = new window.google.maps.Marker({
-        position: { lat: pet.latitude, lng: pet.longitude },
-        map: mapInstance,
-        title: pet.name,
-        icon: {
-          path: window.google.maps.SymbolPath.CIRCLE,
-          scale: 12,
-          fillColor: pet.status === "lost" ? "#EF4444" : "#10B981",
-          fillOpacity: 1,
-          strokeColor: "#ffffff",
-          strokeWeight: 2,
-        },
-      })
-
-      const infoWindow = new window.google.maps.InfoWindow({
-        content: `
-          <div style="padding: 8px; max-width: 200px;">
-            <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">${pet.name}</h3>
-            <p style="margin: 0 0 4px 0; color: #666; font-size: 14px;">
-              Estado: <span style="color: ${pet.status === "lost" ? "#EF4444" : "#10B981"}; font-weight: bold;">
-                ${pet.status === "lost" ? "Perdido" : "Encontrado"}
-              </span>
-            </p>
-            <p style="margin: 0; color: #888; font-size: 12px;">
-              ${new Date(pet.timestamp).toLocaleDateString("es-AR")}
-            </p>
-          </div>
-        `,
-      })
-
-      marker.addListener("click", () => {
-        infoWindow.open(mapInstance, marker)
-        if (onMarkerClick) {
-          onMarkerClick(pet)
-        }
-      })
-
-      markersRef.current.push(marker)
-    })
-
-    console.log(`Added ${markersRef.current.length} markers to map`)
   }
-
-  // Update markers when petLocations change
-  useEffect(() => {
-    if (map && !isLoading && !error) {
-      addMarkersToMap(map)
-    }
-  }, [petLocations, map, isLoading, error])
 
   if (isLoading) {
     return (
@@ -266,27 +54,6 @@ export default function MapView({
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
           <p className="text-gray-600 text-sm">Cargando mapa...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div style={{ height }} className="flex items-center justify-center bg-gray-100 rounded-lg border">
-        <div className="text-center p-4">
-          <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-          <h3 className="font-medium text-gray-900 mb-1">Mapa no disponible</h3>
-          <p className="text-sm text-gray-600 mb-3">{error}</p>
-          <div className="text-xs text-gray-500 max-w-xs">
-            <p className="mb-2">Para habilitar el mapa:</p>
-            <ol className="list-decimal list-inside space-y-1 text-left">
-              <li>Obtén una API key de Google Maps</li>
-              <li>Habilita Maps JavaScript API</li>
-              <li>Configura NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</li>
-              <li>Activa la facturación en Google Cloud</li>
-            </ol>
-          </div>
         </div>
       </div>
     )
@@ -301,23 +68,100 @@ export default function MapView({
           width: "100%",
           minHeight: "300px",
         }}
-        className="w-full rounded-lg border"
-        id="google-map-container"
-      />
-      {petLocations.length > 0 && (
-        <div className="absolute top-2 left-2 bg-white rounded-lg shadow-md p-2 text-xs">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
-              <span>Perdidos ({petLocations.filter((p) => p.status === "lost").length})</span>
+        className="w-full rounded-lg border bg-gradient-to-br from-blue-50 to-green-50 relative overflow-hidden"
+      >
+        {/* Fondo del mapa simulado */}
+        <div className="absolute inset-0 opacity-20">
+          <svg width="100%" height="100%" className="text-blue-200">
+            <defs>
+              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+          </svg>
+        </div>
+
+        {/* Centro del mapa */}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+          <div className="bg-blue-500 rounded-full p-2 shadow-lg">
+            <MapPin className="h-6 w-6 text-white" />
+          </div>
+          <div className="text-xs text-center mt-1 bg-white px-2 py-1 rounded shadow text-gray-700">Tu ubicación</div>
+        </div>
+
+        {/* Marcadores de mascotas */}
+        {petLocations.map((pet, index) => {
+          const angle = index * 60 * (Math.PI / 180) // Distribuir en círculo
+          const radius = 80 + index * 20 // Radio variable
+          const x = 50 + (radius * Math.cos(angle)) / 3 // Posición X en porcentaje
+          const y = 50 + (radius * Math.sin(angle)) / 3 // Posición Y en porcentaje
+
+          return (
+            <div
+              key={pet.id}
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
+              style={{
+                left: `${Math.max(10, Math.min(90, x))}%`,
+                top: `${Math.max(10, Math.min(90, y))}%`,
+              }}
+              onClick={() => handleMarkerClick(pet)}
+            >
+              <div
+                className={`rounded-full p-2 shadow-lg transition-transform group-hover:scale-110 ${
+                  pet.status === "lost" ? "bg-red-500" : "bg-green-500"
+                }`}
+              >
+                <MapPin className="h-4 w-4 text-white" />
+              </div>
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 bg-white px-2 py-1 rounded shadow text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <div className="font-medium">{pet.name}</div>
+                <div className={`text-xs ${pet.status === "lost" ? "text-red-600" : "text-green-600"}`}>
+                  {pet.status === "lost" ? "Perdido" : "Encontrado"}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
-              <span>Encontrados ({petLocations.filter((p) => p.status === "found").length})</span>
+          )
+        })}
+
+        {/* Información del mapa */}
+        <div className="absolute top-4 left-4 bg-white rounded-lg shadow-md p-3 max-w-xs">
+          <h3 className="font-semibold text-gray-800 mb-1">Mapa de Mascotas</h3>
+          <p className="text-sm text-gray-600">
+            {petLocations.length} mascota{petLocations.length !== 1 ? "s" : ""} en el área
+          </p>
+          {petLocations.length > 0 && (
+            <div className="mt-2 text-xs text-gray-500">Haz clic en los marcadores para más información</div>
+          )}
+        </div>
+
+        {/* Leyenda */}
+        {petLocations.length > 0 && (
+          <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-md p-2">
+            <div className="flex items-center space-x-4 text-xs">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
+                <span>Perdidos ({petLocations.filter((p) => p.status === "lost").length})</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
+                <span>Encontrados ({petLocations.filter((p) => p.status === "found").length})</span>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Mensaje cuando no hay mascotas */}
+        {petLocations.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center bg-white rounded-lg shadow-md p-6 max-w-sm">
+              <MapPin className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <h3 className="font-medium text-gray-900 mb-2">No hay mascotas en el mapa</h3>
+              <p className="text-sm text-gray-500">Registra mascotas para ver sus ubicaciones aquí</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
